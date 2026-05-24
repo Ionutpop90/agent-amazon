@@ -3,6 +3,7 @@ import streamlit as st
 import anthropic
 import pandas as pd
 from auth import register_user, login_user, supabase
+from payments import create_checkout_session
 
 api_key = os.environ.get("ANTHROPIC_API_KEY", "")
 client = anthropic.Anthropic(api_key=api_key)
@@ -38,11 +39,27 @@ if not st.session_state.logged_in:
             else:
                 st.error(message)
 else:
-    st.write(f"Bun venit! {st.session_state.user.email}")
-    if st.button("Logout"):
-        st.session_state.logged_in = False
-        st.session_state.user = None
-        st.rerun()
+    col1, col2 = st.columns([3, 1])
+    with col1:
+        st.write(f"Bun venit! {st.session_state.user.email}")
+    with col2:
+        if st.button("Logout"):
+            st.session_state.logged_in = False
+            st.session_state.user = None
+            st.rerun()
+
+    # Buton upgrade Pro
+    st.info("🆓 Plan Gratuit — 2 produse maxim")
+    if st.button("⭐ Upgrade la Pro — 29€/lună"):
+        success, url = create_checkout_session(
+            st.session_state.user.email,
+            success_url="https://agent-amazon-production.up.railway.app?success=true",
+            cancel_url="https://agent-amazon-production.up.railway.app?cancel=true"
+        )
+        if success:
+            st.markdown(f"[Click aici pentru plata]({url})")
+        else:
+            st.error(f"Eroare: {url}")
 
     st.header("Produsele tale")
 
@@ -52,15 +69,19 @@ else:
         cheltuieli = st.number_input("Cheltuieli publicitate (€)", min_value=0)
         rating = st.number_input("Rating", min_value=0.0, max_value=5.0, step=0.1)
         if st.button("💾 Salveaza produs"):
-            supabase.table("produse").insert({
-                "user_id": st.session_state.user.id,
-                "nume": nume,
-                "vanzari": vanzari,
-                "cheltuieli": cheltuieli,
-                "rating": rating
-            }).execute()
-            st.success("Produs salvat!")
-            st.rerun()
+            result_produse = supabase.table("produse").select("*").eq("user_id", st.session_state.user.id).execute()
+            if len(result_produse.data) >= 2:
+                st.warning("⚠️ Ai atins limita de 2 produse pe planul gratuit. Upgradeaza la Pro!")
+            else:
+                supabase.table("produse").insert({
+                    "user_id": st.session_state.user.id,
+                    "nume": nume,
+                    "vanzari": vanzari,
+                    "cheltuieli": cheltuieli,
+                    "rating": rating
+                }).execute()
+                st.success("Produs salvat!")
+                st.rerun()
 
     result = supabase.table("produse").select("*").eq("user_id", st.session_state.user.id).execute()
     produse = result.data
