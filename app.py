@@ -20,7 +20,7 @@ df = pd.DataFrame(produse)
 st.dataframe(df)
 # Buton de analiza
 if st.button("🔍 Analizeaza produsele"):
-    client = anthropic.Anthropic(api_key="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")
+    client = anthropic.Anthropic(api_key=st.secrets["anthropic"]["api_key"])
     
     st.header("Rezultate analiza")
     
@@ -52,7 +52,7 @@ if fisier is not None:
     st.write(f"Reviewuri incarcate: {len(df_reviews)}")
     st.dataframe(df_reviews)
     if st.button("🤖 Analizeaza reviewurile negative"):
-        client = anthropic.Anthropic(api_key="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")
+        client = anthropic.Anthropic(api_key=st.secrets["anthropic"]["api_key"])
         
         negative = df_reviews[df_reviews['rating'] <= 2]
         st.write(f"Reviewuri negative gasite: {len(negative)}")
