@@ -1,12 +1,13 @@
+import os
 import streamlit as st
 import anthropic
 import pandas as pd
 
-# Titlul aplicatiei
+client = anthropic.Anthropic(api_key=os.environ.get("ANTHROPIC_API_KEY"))
+
 st.title("🛒 Agent Amazon - Casa Donostia")
 st.write("Analiza automata a produselor cu AI")
 
-# Sectiunea produse
 st.header("Produsele tale")
 
 produse = [
@@ -15,22 +16,16 @@ produse = [
     {"nume": "Alcachofa Cromo", "vanzari": 600, "cheltuieli": 180, "rating": 4.5},
 ]
 
-# Afisam produsele ca tabel
 df = pd.DataFrame(produse)
 st.dataframe(df)
-# Buton de analiza
+
 if st.button("🔍 Analizeaza produsele"):
-    client = anthropic.Anthropic(api_key=st.secrets["anthropic"]["api_key"])
-    
     st.header("Rezultate analiza")
-    
     for produs in produse:
         acos = (produs['cheltuieli'] / produs['vanzari']) * 100
-        
         with st.expander(f"📦 {produs['nume']} — ACOS {acos:.1f}%"):
             if produs['rating'] < 4.0:
                 st.warning(f"⚠️ Rating slab: {produs['rating']}")
-                
                 with st.spinner("Claude analizeaza..."):
                     mesaj = client.messages.create(
                         model="claude-haiku-4-5-20251001",
@@ -42,7 +37,7 @@ if st.button("🔍 Analizeaza produsele"):
                     st.write(mesaj.content[0].text)
             else:
                 st.success(f"✅ Rating bun: {produs['rating']}")
-                # Sectiunea upload reviewuri
+
 st.header("Analiza Reviewuri")
 
 fisier = st.file_uploader("Incarca CSV cu reviewuri", type="csv")
@@ -52,11 +47,8 @@ if fisier is not None:
     st.write(f"Reviewuri incarcate: {len(df_reviews)}")
     st.dataframe(df_reviews)
     if st.button("🤖 Analizeaza reviewurile negative"):
-        client = anthropic.Anthropic(api_key=st.secrets["anthropic"]["api_key"])
-        
         negative = df_reviews[df_reviews['rating'] <= 2]
         st.write(f"Reviewuri negative gasite: {len(negative)}")
-        
         for index, row in negative.iterrows():
             with st.expander(f"⚠️ {row['produs']} — {row['review'][:50]}..."):
                 with st.spinner("Claude analizeaza..."):
