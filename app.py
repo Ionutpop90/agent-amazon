@@ -2,6 +2,7 @@ import os
 import streamlit as st
 import anthropic
 import pandas as pd
+import plotly.express as px
 from auth import register_user, login_user, supabase
 from payments import create_checkout_session
 
@@ -88,8 +89,29 @@ else:
             st.divider()
             st.subheader("Situatie produse")
             df = pd.DataFrame(produse)
-            df['ACOS %'] = df.apply(lambda r: f"{(r['cheltuieli']/r['vanzari'])*100:.1f}%", axis=1)
+            df['ACOS %'] = df.apply(lambda r: (r['cheltuieli']/r['vanzari'])*100, axis=1)
             st.dataframe(df[['nume', 'vanzari', 'cheltuieli', 'rating', 'ACOS %']], use_container_width=True)
+
+            st.divider()
+            st.subheader("📈 Grafic ACOS per produs")
+            fig_acos = px.bar(
+                df, x='nume', y='ACOS %',
+                color='ACOS %',
+                color_continuous_scale=['green', 'yellow', 'red'],
+                title="ACOS % per produs"
+            )
+            fig_acos.add_hline(y=30, line_dash="dash", line_color="red", annotation_text="Limita 30%")
+            st.plotly_chart(fig_acos, use_container_width=True)
+
+            st.subheader("⭐ Grafic Rating per produs")
+            fig_rating = px.bar(
+                df, x='nume', y='rating',
+                color='rating',
+                color_continuous_scale=['red', 'yellow', 'green'],
+                title="Rating per produs"
+            )
+            fig_rating.add_hline(y=4.0, line_dash="dash", line_color="orange", annotation_text="Minim recomandat 4.0")
+            st.plotly_chart(fig_rating, use_container_width=True)
 
     elif pagina == "📦 Produse":
         st.title("📦 Produsele tale")
@@ -118,6 +140,22 @@ else:
         if len(produse) == 0:
             st.info("Nu ai produse adaugate inca.")
         else:
+            st.subheader("Produsele tale")
+            for produs in produse:
+                col1, col2, col3 = st.columns([3, 1, 1])
+                with col1:
+                    acos = (produs['cheltuieli'] / produs['vanzari']) * 100
+                    st.write(f"📦 **{produs['nume']}** — Rating: {produs['rating']} | ACOS: {acos:.1f}%")
+                with col2:
+                    if st.button("✏️ Edit", key=f"edit_{produs['id']}"):
+                        st.session_state[f"editing_{produs['id']}"] = True
+                with col3:
+                    if st.button("🗑️ Sterge", key=f"del_{produs['id']}"):
+                        supabase.table("produse").delete().eq("id", produs['id']).execute()
+                        st.success("Produs sters!")
+                        st.rerun()
+
+            st.divider()
             if st.button("🔍 Analizeaza toate produsele", use_container_width=True):
                 for produs in produse:
                     acos = (produs['cheltuieli'] / produs['vanzari']) * 100
