@@ -14,6 +14,9 @@ def send_welcome_email(email):
         gmail_user = os.environ.get("GMAIL_USER", "ionutpopionut9@gmail.com")
         gmail_pass = os.environ.get("GMAIL_PASSWORD", "jlljmdaahjpcodxq")
 
+        print(f"Trimit email la: {email}")
+        print(f"Gmail user: {gmail_user}")
+
         msg = MIMEMultipart('alternative')
         msg['Subject'] = "Bun venit la Agent Amazon! 🛒"
         msg['From'] = gmail_user
@@ -36,8 +39,10 @@ def send_welcome_email(email):
         server.login(gmail_user, gmail_pass)
         server.sendmail(gmail_user, email, msg.as_string())
         server.quit()
+        print("Email trimis cu succes!")
         return True
-    except:
+    except Exception as e:
+        print(f"EROARE EMAIL: {e}")
         return False
 
 def register_user(email, password):
