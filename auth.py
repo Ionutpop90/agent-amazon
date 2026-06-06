@@ -35,7 +35,8 @@ def send_welcome_email(email):
         """
 
         msg.attach(MIMEText(html, 'html'))
-        server = smtplib.SMTP_SSL('smtp.gmail.com', 465)
+        server = smtplib.SMTP('smtp.gmail.com', 587)
+        server.starttls()
         server.login(gmail_user, gmail_pass)
         server.sendmail(gmail_user, email, msg.as_string())
         server.quit()
