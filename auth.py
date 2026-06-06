@@ -1,4 +1,7 @@
 import os
+import smtplib
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
 from supabase import create_client
 
 SUPABASE_URL = "https://mstwwbvvhzycswmlskjd.supabase.co"
@@ -6,12 +9,41 @@ SUPABASE_KEY = "sb_publishable_qC5hBcj_CvenVNyqFc5cRw_XIYbfrdI"
 
 supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 
+def send_welcome_email(email):
+    try:
+        msg = MIMEMultipart('alternative')
+        msg['Subject'] = "Bun venit la Agent Amazon! 🛒"
+        msg['From'] = "ionutpopionut9@gmail.com"
+        msg['To'] = email
+
+        html = """
+        <h2>Bun venit la Agent Amazon! 🛒</h2>
+        <p>Contul tau a fost creat cu succes.</p>
+        <p>Acum poti:</p>
+        <ul>
+        <li>✅ Adauga produsele tale Amazon</li>
+        <li>✅ Analiza ACOS-ul automat</li>
+        <li>✅ Primi recomandari AI zilnice</li>
+        </ul>
+        <a href="https://agent-amazon-production.up.railway.app">Acceseaza aplicatia →</a>
+        """
+
+        msg.attach(MIMEText(html, 'html'))
+        server = smtplib.SMTP_SSL('smtp.gmail.com', 465)
+        server.login("ionutpopionut9@gmail.com", "jlljmdaahjpcodxq")
+        server.sendmail("ionutpopionut9@gmail.com", email, msg.as_string())
+        server.quit()
+        return True
+    except:
+        return False
+
 def register_user(email, password):
     try:
         response = supabase.auth.sign_up({
             "email": email,
             "password": password
         })
+        send_welcome_email(email)
         return True, "Cont creat cu succes!"
     except Exception as e:
         return False, str(e)
