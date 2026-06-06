@@ -4,7 +4,7 @@ import anthropic
 import pandas as pd
 import plotly.express as px
 from auth import register_user, login_user, supabase
-from payments import create_checkout_session
+from payments import create_checkout_session, activate_pro, check_pro
 
 st.set_page_config(
     page_title="Agent Amazon",
@@ -53,20 +53,32 @@ else:
         st.divider()
         pagina = st.radio("Navigare", ["📊 Dashboard", "📦 Produse", "💬 Reviewuri"])
         st.divider()
-        st.info("🆓 Plan Gratuit\n2 produse maxim")
-        if st.button("⭐ Upgrade Pro — 29€/lună", use_container_width=True):
-            success, url = create_checkout_session(
-                st.session_state.user.email,
-                success_url="https://agent-amazon-production.up.railway.app?success=true",
-                cancel_url="https://agent-amazon-production.up.railway.app?cancel=true"
-            )
-            if success:
-                st.markdown(f"[👉 Plateste aici]({url})")
+
+        is_pro = check_pro(st.session_state.user.id)
+
+        if is_pro:
+            st.success("⭐ Plan Pro Activ")
+        else:
+            st.info("🆓 Plan Gratuit\n2 produse maxim")
+            if st.button("⭐ Upgrade Pro — 29€/lună", use_container_width=True):
+                success, url = create_checkout_session(
+                    st.session_state.user.email,
+                    st.session_state.user.id,
+                    success_url="https://agent-amazon-production.up.railway.app?success=true",
+                    cancel_url="https://agent-amazon-production.up.railway.app?cancel=true"
+                )
+                if success:
+                    st.markdown(f"[👉 Plateste aici]({url})")
+
         st.divider()
         if st.button("🚪 Logout", use_container_width=True):
             st.session_state.logged_in = False
             st.session_state.user = None
             st.rerun()
+
+    if "success" in st.query_params:
+        activate_pro(st.session_state.user.id)
+        st.success("🎉 Plan Pro activat!")
 
     result = supabase.table("produse").select("*").eq("user_id", st.session_state.user.id).execute()
     produse = result.data
@@ -124,7 +136,7 @@ else:
             with col2:
                 rating = st.number_input("Rating", min_value=0.0, max_value=5.0, step=0.1)
             if st.button("💾 Salveaza produs", use_container_width=True):
-                if len(produse) >= 2:
+                if not is_pro and len(produse) >= 2:
                     st.warning("⚠️ Limita 2 produse pe planul gratuit. Upgradeaza la Pro!")
                 else:
                     supabase.table("produse").insert({
@@ -146,9 +158,6 @@ else:
                 with col1:
                     acos = (produs['cheltuieli'] / produs['vanzari']) * 100
                     st.write(f"📦 **{produs['nume']}** — Rating: {produs['rating']} | ACOS: {acos:.1f}%")
-                with col2:
-                    if st.button("✏️ Edit", key=f"edit_{produs['id']}"):
-                        st.session_state[f"editing_{produs['id']}"] = True
                 with col3:
                     if st.button("🗑️ Sterge", key=f"del_{produs['id']}"):
                         supabase.table("produse").delete().eq("id", produs['id']).execute()
