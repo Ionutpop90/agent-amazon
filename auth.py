@@ -1,8 +1,7 @@
 import os
-import smtplib
-from email.mime.text import MIMEText
-from email.mime.multipart import MIMEMultipart
 from supabase import create_client
+from sendgrid import SendGridAPIClient
+from sendgrid.helpers.mail import Mail
 
 SUPABASE_URL = "https://mstwwbvvhzycswmlskjd.supabase.co"
 SUPABASE_KEY = "sb_publishable_qC5hBcj_CvenVNyqFc5cRw_XIYbfrdI"
@@ -11,36 +10,29 @@ supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 def send_welcome_email(email):
     try:
-        gmail_user = os.environ.get("GMAIL_USER", "ionutpopionut9@gmail.com")
-        gmail_pass = os.environ.get("GMAIL_PASSWORD", "jlljmdaahjpcodxq")
-
+        sg_key = os.environ.get("SENDGRID_API_KEY", "")
         print(f"Trimit email la: {email}")
-        print(f"Gmail user: {gmail_user}")
 
-        msg = MIMEMultipart('alternative')
-        msg['Subject'] = "Bun venit la Agent Amazon! 🛒"
-        msg['From'] = gmail_user
-        msg['To'] = email
+        message = Mail(
+            from_email="ionutpopionut9@gmail.com",
+            to_emails=email,
+            subject="Bun venit la Agent Amazon! 🛒",
+            html_content="""
+            <h2>Bun venit la Agent Amazon! 🛒</h2>
+            <p>Contul tau a fost creat cu succes.</p>
+            <p>Acum poti:</p>
+            <ul>
+            <li>✅ Adauga produsele tale Amazon</li>
+            <li>✅ Analiza ACOS-ul automat</li>
+            <li>✅ Primi recomandari AI zilnice</li>
+            </ul>
+            <a href="https://agent-amazon-production.up.railway.app">Acceseaza aplicatia →</a>
+            """
+        )
 
-        html = """
-        <h2>Bun venit la Agent Amazon! 🛒</h2>
-        <p>Contul tau a fost creat cu succes.</p>
-        <p>Acum poti:</p>
-        <ul>
-        <li>✅ Adauga produsele tale Amazon</li>
-        <li>✅ Analiza ACOS-ul automat</li>
-        <li>✅ Primi recomandari AI zilnice</li>
-        </ul>
-        <a href="https://agent-amazon-production.up.railway.app">Acceseaza aplicatia →</a>
-        """
-
-        msg.attach(MIMEText(html, 'html'))
-        server = smtplib.SMTP('smtp.gmail.com', 587)
-        server.starttls()
-        server.login(gmail_user, gmail_pass)
-        server.sendmail(gmail_user, email, msg.as_string())
-        server.quit()
-        print("Email trimis cu succes!")
+        sg = SendGridAPIClient(sg_key)
+        response = sg.send(message)
+        print(f"Email trimis! Status: {response.status_code}")
         return True
     except Exception as e:
         print(f"EROARE EMAIL: {e}")
