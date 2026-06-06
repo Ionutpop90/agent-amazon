@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="ro">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Agent Amazon — Analiza AI pentru Selleri</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; color: #1a1a1a; }
+        
+        nav { padding: 1rem 2rem; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #eee; }
+        .logo { font-size: 1.2rem; font-weight: 700; }
+        .nav-btn { background: #FF9900; color: white; padding: 0.5rem 1.2rem; border-radius: 6px; text-decoration: none; font-weight: 600; }
+        
+        .hero { text-align: center; padding: 5rem 2rem; background: linear-gradient(135deg, #f8f9fa 0%, #e8f4f8 100%); }
+        .hero h1 { font-size: 3rem; font-weight: 800; margin-bottom: 1rem; }
+        .hero h1 span { color: #FF9900; }
+        .hero p { font-size: 1.2rem; color: #555; max-width: 600px; margin: 0 auto 2rem; }
+        .hero-btn { background: #FF9900; color: white; padding: 1rem 2.5rem; border-radius: 8px; text-decoration: none; font-size: 1.1rem; font-weight: 700; display: inline-block; }
+        .hero-btn:hover { background: #e68900; }
+        .hero-sub { margin-top: 1rem; color: #888; font-size: 0.9rem; }
+
+        .features { padding: 4rem 2rem; max-width: 1100px; margin: 0 auto; }
+        .features h2 { text-align: center; font-size: 2rem; margin-bottom: 3rem; }
+        .features-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 2rem; }
+        .feature-card { padding: 2rem; border: 1px solid #eee; border-radius: 12px; text-align: center; }
+        .feature-icon { font-size: 2.5rem; margin-bottom: 1rem; }
+        .feature-card h3 { font-size: 1.1rem; margin-bottom: 0.5rem; }
+        .feature-card p { color: #666; font-size: 0.95rem; }
+
+        .pricing { background: #f8f9fa; padding: 4rem 2rem; text-align: center; }
+        .pricing h2 { font-size: 2rem; margin-bottom: 3rem; }
+        .pricing-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 2rem; max-width: 700px; margin: 0 auto; }
+        .pricing-card { background: white; padding: 2rem; border-radius: 12px; border: 1px solid #eee; }
+        .pricing-card.featured { border: 2px solid #FF9900; }
+        .pricing-card h3 { font-size: 1.2rem; margin-bottom: 0.5rem; }
+        .price { font-size: 2.5rem; font-weight: 800; margin: 1rem 0; }
+        .price span { font-size: 1rem; font-weight: 400; color: #888; }
+        .pricing-card ul { list-style: none; text-align: left; margin: 1rem 0; }
+        .pricing-card ul li { padding: 0.4rem 0; color: #555; font-size: 0.95rem; }
+        .pricing-card ul li::before { content: "✓ "; color: #FF9900; font-weight: 700; }
+        .pricing-btn { display: block; padding: 0.8rem; border-radius: 8px; text-decoration: none; font-weight: 600; margin-top: 1.5rem; text-align: center; }
+        .pricing-btn.free { border: 2px solid #FF9900; color: #FF9900; }
+        .pricing-btn.pro { background: #FF9900; color: white; }
+
+        .testimonial { padding: 4rem 2rem; max-width: 800px; margin: 0 auto; text-align: center; }
+        .testimonial h2 { font-size: 2rem; margin-bottom: 3rem; }
+        .testimonial-card { background: #f8f9fa; padding: 2rem; border-radius: 12px; margin-bottom: 1.5rem; }
+        .testimonial-card p { font-size: 1.1rem; font-style: italic; color: #444; margin-bottom: 1rem; }
+        .testimonial-card strong { color: #888; font-size: 0.9rem; }
+
+        .cta { background: #FF9900; padding: 4rem 2rem; text-align: center; color: white; }
+        .cta h2 { font-size: 2rem; margin-bottom: 1rem; }
+        .cta p { margin-bottom: 2rem; font-size: 1.1rem; opacity: 0.9; }
+        .cta-btn { background: white; color: #FF9900; padding: 1rem 2.5rem; border-radius: 8px; text-decoration: none; font-weight: 700; font-size: 1.1rem; }
+
+        footer { padding: 2rem; text-align: center; color: #888; font-size: 0.9rem; border-top: 1px solid #eee; }
+
+        @media (max-width: 768px) {
+            .features-grid { grid-template-columns: 1fr; }
+            .pricing-grid { grid-template-columns: 1fr; }
+            .hero h1 { font-size: 2rem; }
+        }
+    </style>
+</head>
+<body>
+
+<nav>
+    <div class="logo">🛒 Agent Amazon</div>
+    <a href="https://agent-amazon-production.up.railway.app" class="nav-btn">Incepe Gratuit</a>
+</nav>
+
+<section class="hero">
+    <h1>Creste vanzarile pe Amazon<br>cu <span>Inteligenta Artificiala</span></h1>
+    <p>Analizeaza automat produsele tale, identifica problemele si primesti recomandari concrete de la Claude AI — in fiecare zi.</p>
+    <a href="https://agent-amazon-production.up.railway.app" class="hero-btn">Incepe Gratuit — 0€</a>
+    <p class="hero-sub">Nu necesita card de credit • 2 produse gratuit</p>
+</section>
+
+<section class="features">
+    <h2>Tot ce ai nevoie intr-un singur tool</h2>
+    <div class="features-grid">
+        <div class="feature-card">
+            <div class="feature-icon">📊</div>
+            <h3>Dashboard ACOS</h3>
+            <p>Monitorizeaza ACOS-ul si rating-ul tuturor produselor dintr-o singura privire.</p>
+        </div>
+        <div class="feature-card">
+            <div class="feature-icon">🤖</div>
+            <h3>Analiza AI cu Claude</h3>
+            <p>Claude analizeaza fiecare produs si iti da 2 actiuni concrete pentru imbunatatire.</p>
+        </div>
+        <div class="feature-card">
+            <div class="feature-icon">💬</div>
+            <h3>Analiza Reviewuri</h3>
+            <p>Incarca reviewurile negative si afla exact ce nemultumesc clientii tai.</p>
+        </div>
+        <div class="feature-card">
+            <div class="feature-icon">📧</div>
+            <h3>Email Automat Zilnic</h3>
+            <p>Primesti in fiecare dimineata un raport cu produsele care au probleme.</p>
+        </div>
+        <div class="feature-card">
+            <div class="feature-icon">🔒</div>
+            <h3>Datele Tale, Sigure</h3>
+            <p>Fiecare seller vede doar produsele lui. Date stocate securizat in cloud.</p>
+        </div>
+        <div class="feature-card">
+            <div class="feature-icon">⚡</div>
+            <h3>Setup in 2 Minute</h3>
+            <p>Creaza cont, adauga produsele si ai primul raport AI in mai putin de 2 minute.</p>
+        </div>
+    </div>
+</section>
+
+<section class="pricing">
+    <h2>Preturi simple si transparente</h2>
+    <div class="pricing-grid">
+        <div class="pricing-card">
+            <h3>Gratuit</h3>
+            <div class="price">0€ <span>/luna</span></div>
+            <ul>
+                <li>2 produse</li>
+                <li>Analiza AI de baza</li>
+                <li>Dashboard ACOS</li>
+                <li>Upload reviewuri</li>
+            </ul>
+            <a href="https://agent-amazon-production.up.railway.app" class="pricing-btn free">Incepe Gratuit</a>
+        </div>
+        <div class="pricing-card featured">
+            <h3>Pro ⭐</h3>
+            <div class="price">29€ <span>/luna</span></div>
+            <ul>
+                <li>Produse nelimitate</li>
+                <li>Analiza AI avansata</li>
+                <li>Email automat zilnic</li>
+                <li>Prioritate support</li>
+                <li>Functii noi first</li>
+            </ul>
+            <a href="https://agent-amazon-production.up.railway.app" class="pricing-btn pro">Upgrade la Pro</a>
+        </div>
+    </div>
+</section>
+
+<section class="cta">
+    <h2>Gata sa iti cresti vanzarile?</h2>
+    <p>Alatura-te sellerilor Amazon care folosesc AI pentru a lua decizii mai bune.</p>
+    <a href="https://agent-amazon-production.up.railway.app" class="cta-btn">Incepe Gratuit Acum</a>
+</section>
+
+<footer>
+    <p>© 2026 Agent Amazon — Construit cu Claude AI</p>
+</footer>
+
+</body>
+</html>
