@@ -4,3 +4,4 @@ pandas
 supabase
 stripe
 plotly
+sendgrid
