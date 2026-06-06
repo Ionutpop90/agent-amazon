@@ -11,9 +11,12 @@ supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 def send_welcome_email(email):
     try:
+        gmail_user = os.environ.get("GMAIL_USER", "ionutpopionut9@gmail.com")
+        gmail_pass = os.environ.get("GMAIL_PASSWORD", "jlljmdaahjpcodxq")
+
         msg = MIMEMultipart('alternative')
         msg['Subject'] = "Bun venit la Agent Amazon! 🛒"
-        msg['From'] = "ionutpopionut9@gmail.com"
+        msg['From'] = gmail_user
         msg['To'] = email
 
         html = """
@@ -30,8 +33,8 @@ def send_welcome_email(email):
 
         msg.attach(MIMEText(html, 'html'))
         server = smtplib.SMTP_SSL('smtp.gmail.com', 465)
-        server.login("ionutpopionut9@gmail.com", "jlljmdaahjpcodxq")
-        server.sendmail("ionutpopionut9@gmail.com", email, msg.as_string())
+        server.login(gmail_user, gmail_pass)
+        server.sendmail(gmail_user, email, msg.as_string())
         server.quit()
         return True
     except:
