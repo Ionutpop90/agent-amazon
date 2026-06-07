@@ -106,17 +106,25 @@ else:
     produse = result.data
     is_pro = check_pro(st.session_state.user.id)
 
-    produse_cu_probleme = sum(1 for p in produse if calculeaza_scor(p) < 70)
+    produse_cu_probleme = sum(1 for p in produse if calculeaza_scor(p) < 75)
+    alerte = sum(1 for p in produse if p['rating'] < 4.0 or (p['cheltuieli']/p['vanzari'])*100 > 30)
 
     with st.sidebar:
         st.title("🛒 Agent Amazon")
         st.write(f"👤 {st.session_state.user.email}")
-        st.divider()
 
+        if alerte > 0:
+            st.error(f"⚠️ {alerte} alerte active — verifica Dashboard!")
+
+        st.divider()
         st.markdown("### Navigare")
-        if st.button("📊  Dashboard", use_container_width=True):
+
+        dashboard_label = f"📊  Dashboard {'🔴' if alerte > 0 else ''}"
+        produse_label = f"📦  Produse {'⚠️' if produse_cu_probleme > 0 else ''}"
+
+        if st.button(dashboard_label, use_container_width=True):
             st.session_state.pagina = "Dashboard"
-        if st.button("📦  Produse", use_container_width=True):
+        if st.button(produse_label, use_container_width=True):
             st.session_state.pagina = "Produse"
         if st.button("💬  Reviewuri", use_container_width=True):
             st.session_state.pagina = "Reviewuri"
@@ -157,7 +165,6 @@ else:
         if len(produse) == 0:
             st.info("Nu ai produse adaugate inca. Mergi la sectiunea Produse!")
         else:
-            # Metrici principale
             col1, col2, col3, col4 = st.columns(4)
             acos_list = [(p['cheltuieli'] / p['vanzari']) * 100 for p in produse]
             rating_mediu = sum(p['rating'] for p in produse) / len(produse)
@@ -173,9 +180,11 @@ else:
                 emoji_scor, _ = culoare_scor(scor_mediu)
                 st.metric("Scor Sanatate", f"{scor_mediu:.0f}/100 {emoji_scor}")
 
+            if alerte > 0:
+                st.warning(f"⚠️ Ai {alerte} produse care necesita atentie imediata!")
+
             st.divider()
 
-            # Recomandari TOP 3
             recomandari = genereaza_recomandari(produse)
             if recomandari:
                 st.subheader("🎯 TOP 3 Actiuni pentru AZI")
@@ -193,7 +202,6 @@ else:
 
             st.divider()
 
-            # Scor sanatate per produs
             st.subheader("💊 Scor Sanatate Produse")
             for produs in produse:
                 scor = calculeaza_scor(produs)
@@ -212,7 +220,6 @@ else:
 
             st.divider()
 
-            # Grafice
             df = pd.DataFrame(produse)
             df['ACOS %'] = df.apply(lambda r: (r['cheltuieli']/r['vanzari'])*100, axis=1)
             df['Scor'] = df.apply(lambda r: calculeaza_scor(r), axis=1)
