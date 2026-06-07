@@ -457,7 +457,7 @@ else:
                 with st.spinner("Agentul analizeaza..."):
                     import warnings
                     warnings.filterwarnings("ignore")
-                    from langchain.agents import create_react_agent as create_agent
+                    from langgraph.prebuilt import create_react_agent
                     from langchain_core.prompts import ChatPromptTemplate
 
                     model_lc = ChatAnthropic(model="claude-haiku-4-5-20251001", api_key=api_key)
@@ -479,7 +479,7 @@ else:
                             lc_messages.append(HumanMessage(content=msg["content"]))
 
                     try:
-                        agent = create_react_agent(model=model_lc, tools=tools)
+                        agent = langgraph.prebuilt.create_react_agent(model=model_lc, tools=tools)
                         rezultat = agent.invoke({"messages": lc_messages})
                         raspuns_text = rezultat["messages"][-1].content
                     except Exception:
