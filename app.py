@@ -75,6 +75,64 @@ def genereaza_recomandari(produse):
             })
     return recomandari[:3]
 
+def show_onboarding():
+    st.markdown("## 👋 Bun venit la Agent Amazon!")
+    st.markdown("Hai sa configurezi contul tau in **3 pasi simpli**:")
+    st.write("")
+
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        st.markdown("""
+        ### ✅ Pasul 1
+        **Adauga primul produs**
+
+        Mergi la sectiunea **Produse** si adauga:
+        - Numele produsului
+        - Vanzarile lunare
+        - Cheltuielile publicitate
+        - Rating-ul actual
+        """)
+        if st.button("➕ Adauga primul produs", use_container_width=True, type="primary"):
+            st.session_state.pagina = "Produse"
+            st.rerun()
+
+    with col2:
+        st.markdown("""
+        ### 📊 Pasul 2
+        **Analizeaza cu AI**
+
+        Dupa ce adaugi produsele:
+        - Vezi Scorul de Sanatate
+        - Primesti TOP 3 actiuni
+        - Claude iti da recomandari
+        - Identifici problemele rapid
+        """)
+
+    with col3:
+        st.markdown("""
+        ### 🤖 Pasul 3
+        **Vorbeste cu Agentul AI**
+
+        Agentul tau personal Amazon:
+        - Iti cunoaste produsele
+        - Raspunde la intrebari
+        - Da planuri de actiune
+        - Disponibil 24/7
+        """)
+        if st.button("🤖 Deschide Agent AI", use_container_width=True):
+            st.session_state.pagina = "Agent"
+            st.rerun()
+
+    st.divider()
+    st.markdown("### 🎁 Ce primesti gratuit:")
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        st.info("📊 **Dashboard complet**\nACOS, Rating, Scor Sanatate")
+    with col2:
+        st.info("🤖 **Agent AI personal**\nConversatie directa cu Claude")
+    with col3:
+        st.info("💬 **Analiza reviewuri**\nIdentifica problemele rapid")
+
 if not st.session_state.logged_in:
     col1, col2, col3 = st.columns([1, 2, 1])
     with col2:
@@ -106,8 +164,8 @@ else:
     produse = result.data
     is_pro = check_pro(st.session_state.user.id)
 
+    alerte = sum(1 for p in produse if p['rating'] < 4.0 or (p['cheltuieli']/p['vanzari'])*100 >= 30)
     produse_cu_probleme = sum(1 for p in produse if calculeaza_scor(p) < 75)
-    alerte = sum(1 for p in produse if p['rating'] < 4.0 or (p['cheltuieli']/p['vanzari'])*100 > 30)
 
     with st.sidebar:
         st.title("🛒 Agent Amazon")
@@ -163,7 +221,7 @@ else:
         st.title("📊 Dashboard")
 
         if len(produse) == 0:
-            st.info("Nu ai produse adaugate inca. Mergi la sectiunea Produse!")
+            show_onboarding()
         else:
             col1, col2, col3, col4 = st.columns(4)
             acos_list = [(p['cheltuieli'] / p['vanzari']) * 100 for p in produse]
