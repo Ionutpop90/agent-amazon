@@ -21,6 +21,8 @@ if 'logged_in' not in st.session_state:
     st.session_state.logged_in = False
 if 'user' not in st.session_state:
     st.session_state.user = None
+if 'pagina' not in st.session_state:
+    st.session_state.pagina = "Dashboard"
 
 if not st.session_state.logged_in:
     col1, col2, col3 = st.columns([1, 2, 1])
@@ -53,7 +55,17 @@ else:
         st.title("🛒 Agent Amazon")
         st.write(f"👤 {st.session_state.user.email}")
         st.divider()
-        pagina = st.radio("Navigare", ["📊 Dashboard", "📦 Produse", "💬 Reviewuri", "🤖 Agent AI"])
+
+        st.markdown("### Navigare")
+        if st.button("📊  Dashboard", use_container_width=True):
+            st.session_state.pagina = "Dashboard"
+        if st.button("📦  Produse", use_container_width=True):
+            st.session_state.pagina = "Produse"
+        if st.button("💬  Reviewuri", use_container_width=True):
+            st.session_state.pagina = "Reviewuri"
+        if st.button("🤖  Agent AI", use_container_width=True):
+            st.session_state.pagina = "Agent"
+
         st.divider()
 
         is_pro = check_pro(st.session_state.user.id)
@@ -84,8 +96,9 @@ else:
 
     result = supabase.table("produse").select("*").eq("user_id", st.session_state.user.id).execute()
     produse = result.data
+    pagina = st.session_state.pagina
 
-    if pagina == "📊 Dashboard":
+    if pagina == "Dashboard":
         st.title("📊 Dashboard")
         if len(produse) == 0:
             st.info("Nu ai produse adaugate inca. Mergi la sectiunea Produse!")
@@ -127,7 +140,7 @@ else:
             fig_rating.add_hline(y=4.0, line_dash="dash", line_color="orange", annotation_text="Minim recomandat 4.0")
             st.plotly_chart(fig_rating, use_container_width=True)
 
-    elif pagina == "📦 Produse":
+    elif pagina == "Produse":
         st.title("📦 Produsele tale")
         with st.expander("➕ Adauga produs nou"):
             nume = st.text_input("Nume produs")
@@ -185,7 +198,7 @@ else:
                         else:
                             st.success(f"✅ Rating bun: {produs['rating']}")
 
-    elif pagina == "💬 Reviewuri":
+    elif pagina == "Reviewuri":
         st.title("💬 Analiza Reviewuri")
         fisier = st.file_uploader("Incarca CSV cu reviewuri", type="csv")
         if fisier is not None:
@@ -207,7 +220,7 @@ else:
                             )
                             st.write(mesaj.content[0].text)
 
-    elif pagina == "🤖 Agent AI":
+    elif pagina == "Agent":
         st.title("🤖 Agent AI Amazon")
         st.write("Conversatie cu agentul tau personal Amazon")
 
