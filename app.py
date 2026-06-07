@@ -1,13 +1,19 @@
 import os
+import io
 import streamlit as st
 import anthropic
 import pandas as pd
 import plotly.express as px
-import plotly.graph_objects as go
 from langchain_anthropic import ChatAnthropic
 from langchain_core.messages import HumanMessage, SystemMessage
 from auth import register_user, login_user, supabase
 from payments import create_checkout_session, activate_pro, check_pro
+from reportlab.lib.pagesizes import A4
+from reportlab.lib import colors
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
+from reportlab.lib.units import cm
+from datetime import datetime
 
 st.set_page_config(
     page_title="Agent Amazon",
@@ -57,23 +63,136 @@ def genereaza_recomandari(produse):
         scor = calculeaza_scor(p)
         if p['rating'] < 4.0:
             recomandari.append({
-                "prioritate": "🔴 URGENT",
+                "prioritate": "URGENT",
                 "actiune": f"Analizeaza reviewurile negative pentru {p['nume']}",
-                "motiv": f"Rating {p['rating']} — sub limita recomandata de 4.0"
+                "motiv": f"Rating {p['rating']} sub limita recomandata de 4.0"
             })
         if acos > 30:
             recomandari.append({
-                "prioritate": "🟡 IMPORTANT",
+                "prioritate": "IMPORTANT",
                 "actiune": f"Reduce ACOS-ul pentru {p['nume']}",
-                "motiv": f"ACOS {acos:.1f}% — peste limita de 30%"
+                "motiv": f"ACOS {acos:.1f}% peste limita de 30%"
             })
         if scor < 50:
             recomandari.append({
-                "prioritate": "🔴 URGENT",
+                "prioritate": "URGENT",
                 "actiune": f"Optimizeaza urgent {p['nume']}",
-                "motiv": f"Scor sanatate {scor}/100 — produs in pericol"
+                "motiv": f"Scor sanatate {scor}/100 produs in pericol"
             })
     return recomandari[:3]
+
+def genereaza_pdf(produse, email):
+    buffer = io.BytesIO()
+    doc = SimpleDocTemplate(buffer, pagesize=A4,
+                           rightMargin=2*cm, leftMargin=2*cm,
+                           topMargin=2*cm, bottomMargin=2*cm)
+
+    styles = getSampleStyleSheet()
+    story = []
+
+    # Titlu
+    title_style = ParagraphStyle('Title', parent=styles['Title'],
+                                fontSize=20, textColor=colors.HexColor('#FF9900'),
+                                spaceAfter=0.3*cm)
+    story.append(Paragraph("Agent Amazon — Raport Analiza", title_style))
+
+    subtitle_style = ParagraphStyle('Subtitle', parent=styles['Normal'],
+                                   fontSize=10, textColor=colors.grey)
+    story.append(Paragraph(f"Generat pe {datetime.now().strftime('%d/%m/%Y %H:%M')} pentru {email}", subtitle_style))
+    story.append(Spacer(1, 0.5*cm))
+
+    # Sumar
+    heading_style = ParagraphStyle('Heading', parent=styles['Heading2'],
+                                  fontSize=14, textColor=colors.HexColor('#1a1a1a'),
+                                  spaceAfter=0.3*cm)
+    story.append(Paragraph("Sumar Portofoliu", heading_style))
+
+    acos_list = [(p['cheltuieli'] / p['vanzari']) * 100 for p in produse]
+    scor_mediu = sum(calculeaza_scor(p) for p in produse) / len(produse)
+    rating_mediu = sum(p['rating'] for p in produse) / len(produse)
+
+    sumar_data = [
+        ['Metric', 'Valoare', 'Status'],
+        ['Total Produse', str(len(produse)), '✓'],
+        ['ACOS Mediu', f"{sum(acos_list)/len(acos_list):.1f}%", 'OK' if sum(acos_list)/len(acos_list) < 30 else 'Atentie'],
+        ['Rating Mediu', f"{rating_mediu:.1f}/5.0", 'OK' if rating_mediu >= 4.0 else 'Atentie'],
+        ['Scor Sanatate Mediu', f"{scor_mediu:.0f}/100", 'OK' if scor_mediu >= 70 else 'Atentie'],
+    ]
+
+    sumar_table = Table(sumar_data, colWidths=[6*cm, 4*cm, 4*cm])
+    sumar_table.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#FF9900')),
+        ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+        ('FONTSIZE', (0, 0), (-1, 0), 11),
+        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+        ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#f8f9fa')]),
+        ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#dee2e6')),
+        ('FONTSIZE', (0, 1), (-1, -1), 10),
+        ('PADDING', (0, 0), (-1, -1), 8),
+    ]))
+    story.append(sumar_table)
+    story.append(Spacer(1, 0.5*cm))
+
+    # Detalii produse
+    story.append(Paragraph("Detalii Produse", heading_style))
+
+    produse_data = [['Produs', 'Vanzari €', 'Cheltuieli €', 'ACOS %', 'Rating', 'Scor']]
+    for p in produse:
+        acos = (p['cheltuieli'] / p['vanzari']) * 100
+        scor = calculeaza_scor(p)
+        produse_data.append([
+            p['nume'][:25],
+            f"{p['vanzari']}€",
+            f"{p['cheltuieli']}€",
+            f"{acos:.1f}%",
+            f"{p['rating']}/5.0",
+            f"{scor}/100"
+        ])
+
+    produse_table = Table(produse_data, colWidths=[5*cm, 2.5*cm, 2.5*cm, 2*cm, 2*cm, 2*cm])
+    produse_table.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#FF9900')),
+        ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+        ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#f8f9fa')]),
+        ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#dee2e6')),
+        ('FONTSIZE', (0, 0), (-1, -1), 9),
+        ('PADDING', (0, 0), (-1, -1), 6),
+    ]))
+    story.append(produse_table)
+    story.append(Spacer(1, 0.5*cm))
+
+    # Recomandari
+    recomandari = genereaza_recomandari(produse)
+    if recomandari:
+        story.append(Paragraph("Recomandari Prioritare", heading_style))
+        rec_data = [['Prioritate', 'Actiune', 'Motiv']]
+        for rec in recomandari:
+            rec_data.append([rec['prioritate'], rec['actiune'][:40], rec['motiv'][:40]])
+
+        rec_table = Table(rec_data, colWidths=[3*cm, 7*cm, 6*cm])
+        rec_table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#FF9900')),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+            ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#f8f9fa')]),
+            ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#dee2e6')),
+            ('FONTSIZE', (0, 0), (-1, -1), 9),
+            ('PADDING', (0, 0), (-1, -1), 6),
+        ]))
+        story.append(rec_table)
+
+    story.append(Spacer(1, 0.5*cm))
+    footer_style = ParagraphStyle('Footer', parent=styles['Normal'],
+                                 fontSize=8, textColor=colors.grey)
+    story.append(Paragraph("Generat de Agent Amazon — Powered by Claude AI | amazonanalyzer.org", footer_style))
+
+    doc.build(story)
+    buffer.seek(0)
+    return buffer
 
 def show_onboarding():
     st.markdown("## 👋 Bun venit la Agent Amazon!")
@@ -241,13 +360,27 @@ else:
             if alerte > 0:
                 st.warning(f"⚠️ Ai {alerte} produse care necesita atentie imediata!")
 
+            # Export PDF
+            col1, col2 = st.columns([4, 1])
+            with col2:
+                if st.button("📄 Export PDF", use_container_width=True):
+                    with st.spinner("Generez raportul PDF..."):
+                        pdf_buffer = genereaza_pdf(produse, st.session_state.user.email)
+                        st.download_button(
+                            label="⬇️ Descarca Raport PDF",
+                            data=pdf_buffer,
+                            file_name=f"raport_amazon_{datetime.now().strftime('%Y%m%d')}.pdf",
+                            mime="application/pdf",
+                            use_container_width=True
+                        )
+
             st.divider()
 
             recomandari = genereaza_recomandari(produse)
             if recomandari:
                 st.subheader("🎯 TOP 3 Actiuni pentru AZI")
                 for i, rec in enumerate(recomandari):
-                    with st.expander(f"{rec['prioritate']} — {rec['actiune']}"):
+                    with st.expander(f"{'🔴' if rec['prioritate']=='URGENT' else '🟡'} {rec['prioritate']} — {rec['actiune']}"):
                         st.write(f"**Motiv:** {rec['motiv']}")
                         if st.button(f"🤖 Obtine plan detaliat", key=f"rec_{i}"):
                             with st.spinner("Claude genereaza plan..."):
