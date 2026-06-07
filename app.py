@@ -13,7 +13,7 @@ from reportlab.lib import colors
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
 from reportlab.lib.units import cm
-from datetime import datetime
+from datetime import datetime, date
 
 st.set_page_config(page_title="Agent Amazon", page_icon="🛒", layout="wide")
 
@@ -65,6 +65,27 @@ def genereaza_recomandari(produse):
                 "motiv": f"Scor sanatate {scor}/100 produs in pericol"})
     return recomandari[:3]
 
+def salveaza_istoric(user_id, produse):
+    today = date.today().isoformat()
+    for p in produse:
+        existing = supabase.table("istoric_acos").select("id").eq("user_id", user_id).eq("produs_id", p['id']).eq("data", today).execute()
+        if len(existing.data) == 0:
+            acos = (p['cheltuieli'] / p['vanzari']) * 100
+            supabase.table("istoric_acos").insert({
+                "user_id": user_id,
+                "produs_id": p['id'],
+                "produs_nume": p['nume'],
+                "acos": acos,
+                "rating": p['rating'],
+                "vanzari": p['vanzari'],
+                "cheltuieli": p['cheltuieli'],
+                "data": today
+            }).execute()
+
+def get_istoric(user_id, produs_id):
+    result = supabase.table("istoric_acos").select("*").eq("user_id", user_id).eq("produs_id", produs_id).order("data").execute()
+    return result.data
+
 def genereaza_pdf(produse, email):
     buffer = io.BytesIO()
     doc = SimpleDocTemplate(buffer, pagesize=A4,
@@ -72,21 +93,17 @@ def genereaza_pdf(produse, email):
                            topMargin=2*cm, bottomMargin=2*cm)
     styles = getSampleStyleSheet()
     story = []
-
     title_style = ParagraphStyle('Title', parent=styles['Title'],
                                 fontSize=20, textColor=colors.HexColor('#FF9900'))
     story.append(Paragraph("Agent Amazon — Raport Analiza", title_style))
     story.append(Paragraph(f"Generat pe {datetime.now().strftime('%d/%m/%Y %H:%M')} pentru {email}",
                            ParagraphStyle('Sub', parent=styles['Normal'], fontSize=10, textColor=colors.grey)))
     story.append(Spacer(1, 0.5*cm))
-
     heading_style = ParagraphStyle('H2', parent=styles['Heading2'], fontSize=14)
     story.append(Paragraph("Sumar Portofoliu", heading_style))
-
     acos_list = [(p['cheltuieli'] / p['vanzari']) * 100 for p in produse]
     scor_mediu = sum(calculeaza_scor(p) for p in produse) / len(produse)
     rating_mediu = sum(p['rating'] for p in produse) / len(produse)
-
     sumar_data = [
         ['Metric', 'Valoare', 'Status'],
         ['Total Produse', str(len(produse)), '✓'],
@@ -107,7 +124,6 @@ def genereaza_pdf(produse, email):
     ]))
     story.append(t)
     story.append(Spacer(1, 0.5*cm))
-
     story.append(Paragraph("Detalii Produse", heading_style))
     produse_data = [['Produs', 'Vanzari €', 'Cheltuieli €', 'ACOS %', 'Rating', 'Scor']]
     for p in produse:
@@ -128,7 +144,6 @@ def genereaza_pdf(produse, email):
     ]))
     story.append(t2)
     story.append(Spacer(1, 0.3*cm))
-
     recomandari = genereaza_recomandari(produse)
     if recomandari:
         story.append(Paragraph("Recomandari Prioritare", heading_style))
@@ -147,7 +162,6 @@ def genereaza_pdf(produse, email):
             ('PADDING', (0,0), (-1,-1), 6),
         ]))
         story.append(t3)
-
     story.append(Spacer(1, 0.5*cm))
     story.append(Paragraph("Generat de Agent Amazon — Powered by Claude AI | amazonanalyzer.org",
                            ParagraphStyle('Footer', parent=styles['Normal'], fontSize=8, textColor=colors.grey)))
@@ -177,7 +191,6 @@ def show_onboarding():
     with col2: st.info("🤖 **Agent AI personal**\nConversatie directa cu Claude")
     with col3: st.info("💬 **Analiza reviewuri**\nIdentifica problemele rapid")
 
-# AUTH
 if not st.session_state.logged_in:
     col1, col2, col3 = st.columns([1, 2, 1])
     with col2:
@@ -211,7 +224,9 @@ else:
     alerte = sum(1 for p in produse if p['rating'] < 4.0 or (p['cheltuieli']/p['vanzari'])*100 >= 30)
     produse_cu_probleme = sum(1 for p in produse if calculeaza_scor(p) < 75)
 
-    # SIDEBAR
+    if len(produse) > 0:
+        salveaza_istoric(st.session_state.user.id, produse)
+
     with st.sidebar:
         st.title("🛒 Agent Amazon")
         st.write(f"👤 {st.session_state.user.email}")
@@ -252,7 +267,6 @@ else:
 
     pagina = st.session_state.pagina
 
-    # DASHBOARD
     if pagina == "Dashboard":
         st.title("📊 Dashboard")
         if len(produse) == 0:
@@ -264,7 +278,6 @@ else:
             acos_mediu = sum(acos_list) / len(acos_list)
             benchmark = benchmark_industrie()
 
-            # Metrici
             col1, col2, col3, col4 = st.columns(4)
             with col1: st.metric("Total Produse", len(produse))
             with col2: st.metric("ACOS Mediu", f"{acos_mediu:.1f}%")
@@ -276,7 +289,6 @@ else:
             if alerte > 0:
                 st.warning(f"⚠️ Ai {alerte} produse care necesita atentie!")
 
-            # Benchmark
             st.divider()
             st.subheader("📈 Comparatie cu Media Industriei")
             col1, col2, col3 = st.columns(3)
@@ -296,7 +308,21 @@ else:
                          delta=f"{diff_scor:+.0f} fata de {benchmark['scor_mediu']:.0f}",
                          delta_color="normal")
 
-            # Export PDF
+            st.divider()
+            st.subheader("📉 Istoric ACOS per produs")
+            for produs in produse:
+                istoric = get_istoric(st.session_state.user.id, produs['id'])
+                if len(istoric) > 1:
+                    df_istoric = pd.DataFrame(istoric)
+                    fig = px.line(df_istoric, x='data', y='acos',
+                                 title=f"Evolutie ACOS — {produs['nume']}",
+                                 markers=True)
+                    fig.add_hline(y=30, line_dash="dash", line_color="red", annotation_text="Limita 30%")
+                    fig.update_layout(xaxis_title="Data", yaxis_title="ACOS %")
+                    st.plotly_chart(fig, use_container_width=True)
+                else:
+                    st.info(f"📦 {produs['nume']} — Istoric disponibil dupa mai multe zile de date.")
+
             st.divider()
             col1, col2 = st.columns([4, 1])
             with col2:
@@ -311,7 +337,6 @@ else:
                             use_container_width=True
                         )
 
-            # TOP 3
             recomandari = genereaza_recomandari(produse)
             if recomandari:
                 st.subheader("🎯 TOP 3 Actiuni pentru AZI")
@@ -326,7 +351,6 @@ else:
                                 )
                                 st.write(mesaj.content[0].text)
 
-            # Scor sanatate
             st.divider()
             st.subheader("💊 Scor Sanatate Produse")
             for produs in produse:
@@ -341,7 +365,6 @@ else:
                 with col3: st.metric("Rating", produs['rating'])
                 with col4: st.metric("ACOS", f"{acos:.1f}%")
 
-            # Grafice
             st.divider()
             df = pd.DataFrame(produse)
             df['ACOS %'] = df.apply(lambda r: (r['cheltuieli']/r['vanzari'])*100, axis=1)
@@ -358,7 +381,6 @@ else:
                 fig2.add_hline(y=70, line_dash="dash", line_color="orange", annotation_text="Minim recomandat")
                 st.plotly_chart(fig2, use_container_width=True)
 
-    # PRODUSE
     elif pagina == "Produse":
         st.title("📦 Produsele tale")
         with st.expander("➕ Adauga produs nou"):
@@ -415,7 +437,6 @@ else:
                         else:
                             st.success(f"✅ Rating bun: {produs['rating']}")
 
-    # REVIEWURI
     elif pagina == "Reviewuri":
         st.title("💬 Analiza Reviewuri")
         fisier = st.file_uploader("Incarca CSV cu reviewuri", type="csv")
@@ -435,18 +456,14 @@ else:
                             )
                             st.write(mesaj.content[0].text)
 
-    # AGENT AI
     elif pagina == "Agent":
         st.title("🤖 Agent AI Amazon")
         st.write("Conversatie cu agentul tau personal Amazon")
-
         if "messages_agent" not in st.session_state:
             st.session_state.messages_agent = []
-
         for msg in st.session_state.messages_agent:
             with st.chat_message(msg["role"]):
                 st.write(msg["content"])
-
         if prompt := st.chat_input("Intreaba agentul tau Amazon..."):
             st.session_state.messages_agent.append({"role": "user", "content": prompt})
             with st.chat_message("user"):
