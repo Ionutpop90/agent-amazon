@@ -3,6 +3,7 @@ import streamlit as st
 import anthropic
 import pandas as pd
 import plotly.express as px
+import plotly.graph_objects as go
 from langchain_anthropic import ChatAnthropic
 from langchain_core.messages import HumanMessage, SystemMessage
 from auth import register_user, login_user, supabase
@@ -23,6 +24,56 @@ if 'user' not in st.session_state:
     st.session_state.user = None
 if 'pagina' not in st.session_state:
     st.session_state.pagina = "Dashboard"
+
+def calculeaza_scor(produs):
+    scor = 100
+    acos = (produs['cheltuieli'] / produs['vanzari']) * 100
+    if produs['rating'] < 3.5:
+        scor -= 40
+    elif produs['rating'] < 4.0:
+        scor -= 20
+    elif produs['rating'] < 4.3:
+        scor -= 10
+    if acos > 40:
+        scor -= 30
+    elif acos > 30:
+        scor -= 15
+    elif acos > 20:
+        scor -= 5
+    return max(0, scor)
+
+def culoare_scor(scor):
+    if scor >= 75:
+        return "🟢", "success"
+    elif scor >= 50:
+        return "🟡", "warning"
+    else:
+        return "🔴", "error"
+
+def genereaza_recomandari(produse):
+    recomandari = []
+    for p in produse:
+        acos = (p['cheltuieli'] / p['vanzari']) * 100
+        scor = calculeaza_scor(p)
+        if p['rating'] < 4.0:
+            recomandari.append({
+                "prioritate": "🔴 URGENT",
+                "actiune": f"Analizeaza reviewurile negative pentru {p['nume']}",
+                "motiv": f"Rating {p['rating']} — sub limita recomandata de 4.0"
+            })
+        if acos > 30:
+            recomandari.append({
+                "prioritate": "🟡 IMPORTANT",
+                "actiune": f"Reduce ACOS-ul pentru {p['nume']}",
+                "motiv": f"ACOS {acos:.1f}% — peste limita de 30%"
+            })
+        if scor < 50:
+            recomandari.append({
+                "prioritate": "🔴 URGENT",
+                "actiune": f"Optimizeaza urgent {p['nume']}",
+                "motiv": f"Scor sanatate {scor}/100 — produs in pericol"
+            })
+    return recomandari[:3]
 
 if not st.session_state.logged_in:
     col1, col2, col3 = st.columns([1, 2, 1])
@@ -51,6 +102,12 @@ if not st.session_state.logged_in:
                 else:
                     st.error(message)
 else:
+    result = supabase.table("produse").select("*").eq("user_id", st.session_state.user.id).execute()
+    produse = result.data
+    is_pro = check_pro(st.session_state.user.id)
+
+    produse_cu_probleme = sum(1 for p in produse if calculeaza_scor(p) < 70)
+
     with st.sidebar:
         st.title("🛒 Agent Amazon")
         st.write(f"👤 {st.session_state.user.email}")
@@ -67,8 +124,6 @@ else:
             st.session_state.pagina = "Agent"
 
         st.divider()
-
-        is_pro = check_pro(st.session_state.user.id)
 
         if is_pro:
             st.success("⭐ Plan Pro Activ")
@@ -94,51 +149,87 @@ else:
         activate_pro(st.session_state.user.id)
         st.success("🎉 Plan Pro activat!")
 
-    result = supabase.table("produse").select("*").eq("user_id", st.session_state.user.id).execute()
-    produse = result.data
     pagina = st.session_state.pagina
 
     if pagina == "Dashboard":
         st.title("📊 Dashboard")
+
         if len(produse) == 0:
             st.info("Nu ai produse adaugate inca. Mergi la sectiunea Produse!")
         else:
-            col1, col2, col3 = st.columns(3)
+            # Metrici principale
+            col1, col2, col3, col4 = st.columns(4)
             acos_list = [(p['cheltuieli'] / p['vanzari']) * 100 for p in produse]
+            rating_mediu = sum(p['rating'] for p in produse) / len(produse)
+            scor_mediu = sum(calculeaza_scor(p) for p in produse) / len(produse)
+
             with col1:
                 st.metric("Total Produse", len(produse))
             with col2:
                 st.metric("ACOS Mediu", f"{sum(acos_list)/len(acos_list):.1f}%")
             with col3:
-                rating_mediu = sum(p['rating'] for p in produse) / len(produse)
                 st.metric("Rating Mediu", f"{rating_mediu:.1f} ⭐")
+            with col4:
+                emoji_scor, _ = culoare_scor(scor_mediu)
+                st.metric("Scor Sanatate", f"{scor_mediu:.0f}/100 {emoji_scor}")
 
             st.divider()
-            st.subheader("Situatie produse")
+
+            # Recomandari TOP 3
+            recomandari = genereaza_recomandari(produse)
+            if recomandari:
+                st.subheader("🎯 TOP 3 Actiuni pentru AZI")
+                for i, rec in enumerate(recomandari):
+                    with st.expander(f"{rec['prioritate']} — {rec['actiune']}"):
+                        st.write(f"**Motiv:** {rec['motiv']}")
+                        if st.button(f"🤖 Obtine plan detaliat", key=f"rec_{i}"):
+                            with st.spinner("Claude genereaza plan..."):
+                                mesaj = client.messages.create(
+                                    model="claude-haiku-4-5-20251001",
+                                    max_tokens=200,
+                                    messages=[{"role": "user", "content": f"Plan de actiune in 3 pasi pentru: {rec['actiune']}. Motiv: {rec['motiv']}"}]
+                                )
+                                st.write(mesaj.content[0].text)
+
+            st.divider()
+
+            # Scor sanatate per produs
+            st.subheader("💊 Scor Sanatate Produse")
+            for produs in produse:
+                scor = calculeaza_scor(produs)
+                emoji, tip = culoare_scor(scor)
+                acos = (produs['cheltuieli'] / produs['vanzari']) * 100
+                col1, col2, col3, col4 = st.columns([3, 1, 1, 1])
+                with col1:
+                    st.write(f"**{produs['nume']}**")
+                    st.progress(scor / 100)
+                with col2:
+                    st.metric("Scor", f"{scor} {emoji}")
+                with col3:
+                    st.metric("Rating", produs['rating'])
+                with col4:
+                    st.metric("ACOS", f"{acos:.1f}%")
+
+            st.divider()
+
+            # Grafice
             df = pd.DataFrame(produse)
             df['ACOS %'] = df.apply(lambda r: (r['cheltuieli']/r['vanzari'])*100, axis=1)
-            st.dataframe(df[['nume', 'vanzari', 'cheltuieli', 'rating', 'ACOS %']], use_container_width=True)
+            df['Scor'] = df.apply(lambda r: calculeaza_scor(r), axis=1)
 
-            st.divider()
-            st.subheader("📈 Grafic ACOS per produs")
-            fig_acos = px.bar(
-                df, x='nume', y='ACOS %',
-                color='ACOS %',
-                color_continuous_scale=['green', 'yellow', 'red'],
-                title="ACOS % per produs"
-            )
-            fig_acos.add_hline(y=30, line_dash="dash", line_color="red", annotation_text="Limita 30%")
-            st.plotly_chart(fig_acos, use_container_width=True)
-
-            st.subheader("⭐ Grafic Rating per produs")
-            fig_rating = px.bar(
-                df, x='nume', y='rating',
-                color='rating',
-                color_continuous_scale=['red', 'yellow', 'green'],
-                title="Rating per produs"
-            )
-            fig_rating.add_hline(y=4.0, line_dash="dash", line_color="orange", annotation_text="Minim recomandat 4.0")
-            st.plotly_chart(fig_rating, use_container_width=True)
+            col1, col2 = st.columns(2)
+            with col1:
+                fig_acos = px.bar(df, x='nume', y='ACOS %',
+                    color='ACOS %', color_continuous_scale=['green', 'yellow', 'red'],
+                    title="ACOS % per produs")
+                fig_acos.add_hline(y=30, line_dash="dash", line_color="red", annotation_text="Limita 30%")
+                st.plotly_chart(fig_acos, use_container_width=True)
+            with col2:
+                fig_scor = px.bar(df, x='nume', y='Scor',
+                    color='Scor', color_continuous_scale=['red', 'yellow', 'green'],
+                    title="Scor Sanatate per produs")
+                fig_scor.add_hline(y=70, line_dash="dash", line_color="orange", annotation_text="Minim recomandat")
+                st.plotly_chart(fig_scor, use_container_width=True)
 
     elif pagina == "Produse":
         st.title("📦 Produsele tale")
@@ -169,10 +260,12 @@ else:
         else:
             st.subheader("Produsele tale")
             for produs in produse:
-                col1, col2, col3 = st.columns([3, 1, 1])
+                scor = calculeaza_scor(produs)
+                emoji, _ = culoare_scor(scor)
+                acos = (produs['cheltuieli'] / produs['vanzari']) * 100
+                col1, col2, col3 = st.columns([4, 1, 1])
                 with col1:
-                    acos = (produs['cheltuieli'] / produs['vanzari']) * 100
-                    st.write(f"📦 **{produs['nume']}** — Rating: {produs['rating']} | ACOS: {acos:.1f}%")
+                    st.write(f"{emoji} **{produs['nume']}** — Rating: {produs['rating']} | ACOS: {acos:.1f}% | Scor: {scor}/100")
                 with col3:
                     if st.button("🗑️ Sterge", key=f"del_{produs['id']}"):
                         supabase.table("produse").delete().eq("id", produs['id']).execute()
@@ -182,17 +275,17 @@ else:
             st.divider()
             if st.button("🔍 Analizeaza toate produsele", use_container_width=True):
                 for produs in produse:
+                    scor = calculeaza_scor(produs)
+                    emoji, _ = culoare_scor(scor)
                     acos = (produs['cheltuieli'] / produs['vanzari']) * 100
-                    with st.expander(f"📦 {produs['nume']} — ACOS {acos:.1f}%"):
+                    with st.expander(f"{emoji} {produs['nume']} — Scor {scor}/100 | ACOS {acos:.1f}%"):
                         if produs['rating'] < 4.0:
                             st.warning(f"⚠️ Rating slab: {produs['rating']}")
                             with st.spinner("Claude analizeaza..."):
                                 mesaj = client.messages.create(
                                     model="claude-haiku-4-5-20251001",
                                     max_tokens=150,
-                                    messages=[
-                                        {"role": "user", "content": f"2 actiuni concrete pentru '{produs['nume']}' cu rating {produs['rating']}: "}
-                                    ]
+                                    messages=[{"role": "user", "content": f"2 actiuni concrete pentru '{produs['nume']}' cu rating {produs['rating']}: "}]
                                 )
                                 st.write(mesaj.content[0].text)
                         else:
@@ -214,9 +307,7 @@ else:
                             mesaj = client.messages.create(
                                 model="claude-haiku-4-5-20251001",
                                 max_tokens=150,
-                                messages=[
-                                    {"role": "user", "content": f"Solutie concreta in 2 randuri pentru acest review negativ: '{row['review']}'"}
-                                ]
+                                messages=[{"role": "user", "content": f"Solutie concreta in 2 randuri pentru acest review negativ: '{row['review']}'"}]
                             )
                             st.write(mesaj.content[0].text)
 
@@ -242,15 +333,15 @@ else:
                         model="claude-haiku-4-5-20251001",
                         api_key=api_key
                     )
-
                     context = f"Produsele userului: {produse}" if len(produse) > 0 else ""
+                    scoruri = {p['nume']: calculeaza_scor(p) for p in produse}
 
                     lc_messages = [
                         SystemMessage(content=f"""Esti un expert Amazon care ajuta sellerii.
                         Raspunzi mereu in romana. Esti direct si dai actiuni concrete.
-                        {context}""")
+                        {context}
+                        Scoruri sanatate produse: {scoruri}""")
                     ]
-
                     for msg in st.session_state.messages_agent:
                         if msg["role"] == "user":
                             lc_messages.append(HumanMessage(content=msg["content"]))
