@@ -6,6 +6,8 @@ import pandas as pd
 import plotly.express as px
 from langchain_anthropic import ChatAnthropic
 from langchain_core.messages import HumanMessage, SystemMessage
+from langchain_core.tools import tool
+from langgraph.prebuilt import create_react_agent
 from auth import register_user, login_user, supabase
 from payments import create_checkout_session, activate_pro, check_pro
 from reportlab.lib.pagesizes import A4
@@ -149,6 +151,36 @@ def show_onboarding():
     with col1: st.info("📊 **Dashboard complet**\nACOS, Rating, Scor Sanatate")
     with col2: st.info("🤖 **Agent AI personal**\nConversatie directa cu Claude")
     with col3: st.info("💬 **Analiza reviewuri**\nIdentifica problemele rapid")
+
+# TOOLS pentru Agent AI
+@tool
+def calculeaza_profit(vanzari: int, acos: float, pret_produs: float, cost_produs: float) -> str:
+    """Calculeaza profitul lunar al unui produs Amazon tinand cont de ACOS si costul produsului"""
+    cheltuieli_ads = vanzari * pret_produs * (acos / 100)
+    venit_total = vanzari * pret_produs
+    cost_total_produse = vanzari * cost_produs
+    profit = venit_total - cheltuieli_ads - cost_total_produse
+    marja = (profit / venit_total) * 100
+    return f"""
+    Venit total: {venit_total:.0f}€
+    Cheltuieli ads: {cheltuieli_ads:.0f}€
+    Cost produse: {cost_total_produse:.0f}€
+    PROFIT NET: {profit:.0f}€
+    Marja profit: {marja:.1f}%
+    Status: {'✅ RENTABIL' if profit > 0 else '❌ PIERDERE'}
+    """
+
+@tool
+def calculeaza_acos_optim(marja_dorita: float, cost_produs: float, pret_vanzare: float) -> str:
+    """Calculeaza ACOS-ul maxim pentru a atinge marja de profit dorita"""
+    marja_bruta = ((pret_vanzare - cost_produs) / pret_vanzare) * 100
+    acos_maxim = marja_bruta - marja_dorita
+    return f"""
+    Marja bruta: {marja_bruta:.1f}%
+    Marja dorita: {marja_dorita:.1f}%
+    ACOS maxim recomandat: {acos_maxim:.1f}%
+    Daca ACOS-ul tau e peste {acos_maxim:.1f}%, produsul nu atinge marja dorita.
+    """
 
 if not st.session_state.logged_in:
     col1, col2, col3 = st.columns([1, 2, 1])
@@ -408,31 +440,54 @@ else:
 
     elif pagina == "Agent":
         st.title("🤖 Agent AI Amazon")
-        st.write("Conversatie cu agentul tau personal Amazon")
+        st.info("💡 Agentul poate calcula automat profitul si ACOS-ul optim! Intreaba-l: 'Calculeaza profitul pentru 500 vanzari, ACOS 30%, pret 15€, cost 5€'")
+
         if "messages_agent" not in st.session_state:
             st.session_state.messages_agent = []
+
         for msg in st.session_state.messages_agent:
             with st.chat_message(msg["role"]):
                 st.write(msg["content"])
+
         if prompt := st.chat_input("Intreaba agentul tau Amazon..."):
             st.session_state.messages_agent.append({"role": "user", "content": prompt})
             with st.chat_message("user"):
                 st.write(prompt)
             with st.chat_message("assistant"):
                 with st.spinner("Agentul analizeaza..."):
+                    import warnings
+                    warnings.filterwarnings("ignore")
+                    from langchain.agents import create_react_agent as create_agent
+                    from langchain_core.prompts import ChatPromptTemplate
+
                     model_lc = ChatAnthropic(model="claude-haiku-4-5-20251001", api_key=api_key)
+                    tools = [calculeaza_profit, calculeaza_acos_optim]
                     scoruri = {p['nume']: calculeaza_scor(p) for p in produse}
-                    lc_messages = [SystemMessage(content=f"""Esti un expert Amazon care ajuta sellerii.
-                        Raspunzi mereu in romana. Esti direct si dai actiuni concrete.
-                        Produsele userului: {produse}
-                        Scoruri sanatate: {scoruri}
-                        Benchmark industrie: {benchmark_industrie()}""")]
+
+                    system_prompt = f"""Esti un expert Amazon care ajuta sellerii romani.
+                    Raspunzi MEREU in romana. Esti direct si dai actiuni concrete.
+                    Produsele userului: {produse}
+                    Scoruri sanatate: {scoruri}
+                    Benchmark industrie: {benchmark_industrie()}
+                    
+                    Ai acces la tool-uri pentru calcul profit si ACOS optim.
+                    Foloseste-le cand userul cere calcule financiare."""
+
+                    lc_messages = [SystemMessage(content=system_prompt)]
                     for msg in st.session_state.messages_agent:
                         if msg["role"] == "user":
                             lc_messages.append(HumanMessage(content=msg["content"]))
-                    raspuns = model_lc.invoke(lc_messages)
-                    st.write(raspuns.content)
-                    st.session_state.messages_agent.append({"role": "assistant", "content": raspuns.content})
+
+                    try:
+                        agent = create_react_agent(model=model_lc, tools=tools)
+                        rezultat = agent.invoke({"messages": lc_messages})
+                        raspuns_text = rezultat["messages"][-1].content
+                    except Exception:
+                        raspuns = model_lc.invoke(lc_messages)
+                        raspuns_text = raspuns.content
+
+                    st.write(raspuns_text)
+                    st.session_state.messages_agent.append({"role": "assistant", "content": raspuns_text})
 
     elif pagina == "Profil":
         st.title("👤 Profilul Meu")
@@ -445,14 +500,12 @@ else:
                 <p style="color:#888;">Membru din {datetime.now().strftime('%B %Y')}</p>
             </div>
             """, unsafe_allow_html=True)
-
         with col2:
             st.subheader("Informatii Cont")
             st.write(f"**Email:** {st.session_state.user.email}")
             st.write(f"**Plan:** {'⭐ Pro' if is_pro else '🆓 Gratuit'}")
             st.write(f"**Produse active:** {len(produse)}")
             st.write(f"**ID Cont:** `{str(st.session_state.user.id)[:8]}...`")
-
             st.divider()
             st.subheader("Statistici")
             if len(produse) > 0:
@@ -466,7 +519,6 @@ else:
                     st.metric("Scor Mediu", f"{scor_mediu:.0f} {emoji}")
             else:
                 st.info("Adauga produse pentru a vedea statisticile.")
-
             st.divider()
             if not is_pro:
                 st.subheader("🚀 Upgrade la Pro")
