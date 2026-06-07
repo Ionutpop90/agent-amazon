@@ -7,103 +7,251 @@
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; color: #1a1a1a; }
-        
-        nav { padding: 1rem 2rem; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #eee; }
-        .logo { font-size: 1.2rem; font-weight: 700; }
-        .nav-btn { background: #FF9900; color: white; padding: 0.5rem 1.2rem; border-radius: 6px; text-decoration: none; font-weight: 600; }
-        
-        .hero { text-align: center; padding: 5rem 2rem; background: linear-gradient(135deg, #f8f9fa 0%, #e8f4f8 100%); }
-        .hero h1 { font-size: 3rem; font-weight: 800; margin-bottom: 1rem; }
-        .hero h1 span { color: #FF9900; }
-        .hero p { font-size: 1.2rem; color: #555; max-width: 600px; margin: 0 auto 2rem; }
-        .hero-btn { background: #FF9900; color: white; padding: 1rem 2.5rem; border-radius: 8px; text-decoration: none; font-size: 1.1rem; font-weight: 700; display: inline-block; }
-        .hero-btn:hover { background: #e68900; }
-        .hero-sub { margin-top: 1rem; color: #888; font-size: 0.9rem; }
 
-        .features { padding: 4rem 2rem; max-width: 1100px; margin: 0 auto; }
-        .features h2 { text-align: center; font-size: 2rem; margin-bottom: 3rem; }
+        nav {
+            padding: 1rem 3rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: white;
+            border-bottom: 1px solid #eee;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+        .logo { font-size: 1.3rem; font-weight: 800; color: #1a1a1a; }
+        .logo span { color: #FF9900; }
+        .nav-links { display: flex; gap: 1rem; align-items: center; }
+        .nav-login {
+            padding: 0.5rem 1.2rem;
+            border: 2px solid #FF9900;
+            color: #FF9900;
+            border-radius: 6px;
+            text-decoration: none;
+            font-weight: 600;
+            transition: all 0.2s;
+        }
+        .nav-login:hover { background: #FF9900; color: white; }
+        .nav-btn {
+            background: #FF9900;
+            color: white;
+            padding: 0.5rem 1.2rem;
+            border-radius: 6px;
+            text-decoration: none;
+            font-weight: 600;
+            transition: all 0.2s;
+        }
+        .nav-btn:hover { background: #e68900; }
+
+        .hero {
+            text-align: center;
+            padding: 6rem 2rem 4rem;
+            background: linear-gradient(135deg, #fffdf7 0%, #fff8ec 100%);
+        }
+        .hero-badge {
+            display: inline-block;
+            background: #fff3cd;
+            color: #856404;
+            padding: 0.3rem 1rem;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            margin-bottom: 1.5rem;
+        }
+        .hero h1 { font-size: 3.2rem; font-weight: 800; margin-bottom: 1.2rem; line-height: 1.2; }
+        .hero h1 span { color: #FF9900; }
+        .hero p { font-size: 1.2rem; color: #555; max-width: 600px; margin: 0 auto 2.5rem; line-height: 1.7; }
+        .hero-buttons { display: flex; gap: 1rem; justify-content: center; flex-wrap: wrap; }
+        .hero-btn-primary {
+            background: #FF9900;
+            color: white;
+            padding: 1rem 2.5rem;
+            border-radius: 8px;
+            text-decoration: none;
+            font-size: 1.1rem;
+            font-weight: 700;
+            transition: all 0.2s;
+        }
+        .hero-btn-primary:hover { background: #e68900; transform: translateY(-2px); }
+        .hero-btn-secondary {
+            background: white;
+            color: #1a1a1a;
+            padding: 1rem 2.5rem;
+            border-radius: 8px;
+            text-decoration: none;
+            font-size: 1.1rem;
+            font-weight: 600;
+            border: 2px solid #ddd;
+            transition: all 0.2s;
+        }
+        .hero-btn-secondary:hover { border-color: #FF9900; color: #FF9900; }
+        .hero-sub { margin-top: 1.2rem; color: #888; font-size: 0.9rem; }
+
+        .stats {
+            display: flex;
+            justify-content: center;
+            gap: 4rem;
+            padding: 3rem 2rem;
+            background: white;
+            border-bottom: 1px solid #eee;
+        }
+        .stat { text-align: center; }
+        .stat-num { font-size: 2rem; font-weight: 800; color: #FF9900; }
+        .stat-label { color: #888; font-size: 0.9rem; margin-top: 0.3rem; }
+
+        .features { padding: 5rem 2rem; max-width: 1100px; margin: 0 auto; }
+        .features h2 { text-align: center; font-size: 2.2rem; margin-bottom: 0.5rem; }
+        .features-sub { text-align: center; color: #888; margin-bottom: 3rem; font-size: 1.05rem; }
         .features-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 2rem; }
-        .feature-card { padding: 2rem; border: 1px solid #eee; border-radius: 12px; text-align: center; }
+        .feature-card {
+            padding: 2rem;
+            border: 1px solid #eee;
+            border-radius: 16px;
+            transition: all 0.2s;
+        }
+        .feature-card:hover { border-color: #FF9900; transform: translateY(-4px); box-shadow: 0 8px 24px rgba(255,153,0,0.1); }
         .feature-icon { font-size: 2.5rem; margin-bottom: 1rem; }
         .feature-card h3 { font-size: 1.1rem; margin-bottom: 0.5rem; }
-        .feature-card p { color: #666; font-size: 0.95rem; }
+        .feature-card p { color: #666; font-size: 0.95rem; line-height: 1.6; }
 
-        .pricing { background: #f8f9fa; padding: 4rem 2rem; text-align: center; }
-        .pricing h2 { font-size: 2rem; margin-bottom: 3rem; }
+        .how-it-works { background: #f8f9fa; padding: 5rem 2rem; }
+        .how-it-works h2 { text-align: center; font-size: 2.2rem; margin-bottom: 3rem; }
+        .steps { display: flex; justify-content: center; gap: 2rem; max-width: 900px; margin: 0 auto; flex-wrap: wrap; }
+        .step { text-align: center; flex: 1; min-width: 200px; }
+        .step-num {
+            width: 50px; height: 50px;
+            background: #FF9900;
+            color: white;
+            border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 1.3rem; font-weight: 800;
+            margin: 0 auto 1rem;
+        }
+        .step h3 { margin-bottom: 0.5rem; }
+        .step p { color: #666; font-size: 0.95rem; }
+
+        .pricing { padding: 5rem 2rem; text-align: center; }
+        .pricing h2 { font-size: 2.2rem; margin-bottom: 0.5rem; }
+        .pricing-sub { color: #888; margin-bottom: 3rem; }
         .pricing-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 2rem; max-width: 700px; margin: 0 auto; }
-        .pricing-card { background: white; padding: 2rem; border-radius: 12px; border: 1px solid #eee; }
-        .pricing-card.featured { border: 2px solid #FF9900; }
+        .pricing-card { background: white; padding: 2.5rem; border-radius: 16px; border: 1px solid #eee; text-align: left; }
+        .pricing-card.featured { border: 2px solid #FF9900; position: relative; }
+        .featured-badge {
+            position: absolute; top: -12px; left: 50%; transform: translateX(-50%);
+            background: #FF9900; color: white;
+            padding: 0.2rem 1rem; border-radius: 20px; font-size: 0.8rem; font-weight: 700;
+        }
         .pricing-card h3 { font-size: 1.2rem; margin-bottom: 0.5rem; }
-        .price { font-size: 2.5rem; font-weight: 800; margin: 1rem 0; }
+        .price { font-size: 2.8rem; font-weight: 800; margin: 1rem 0; }
         .price span { font-size: 1rem; font-weight: 400; color: #888; }
-        .pricing-card ul { list-style: none; text-align: left; margin: 1rem 0; }
-        .pricing-card ul li { padding: 0.4rem 0; color: #555; font-size: 0.95rem; }
+        .pricing-card ul { list-style: none; margin: 1.5rem 0; }
+        .pricing-card ul li { padding: 0.5rem 0; color: #555; font-size: 0.95rem; border-bottom: 1px solid #f0f0f0; }
         .pricing-card ul li::before { content: "✓ "; color: #FF9900; font-weight: 700; }
-        .pricing-btn { display: block; padding: 0.8rem; border-radius: 8px; text-decoration: none; font-weight: 600; margin-top: 1.5rem; text-align: center; }
+        .pricing-btn {
+            display: block; padding: 0.9rem;
+            border-radius: 8px; text-decoration: none;
+            font-weight: 700; text-align: center;
+            transition: all 0.2s;
+        }
         .pricing-btn.free { border: 2px solid #FF9900; color: #FF9900; }
+        .pricing-btn.free:hover { background: #FF9900; color: white; }
         .pricing-btn.pro { background: #FF9900; color: white; }
+        .pricing-btn.pro:hover { background: #e68900; }
 
-        .testimonial { padding: 4rem 2rem; max-width: 800px; margin: 0 auto; text-align: center; }
-        .testimonial h2 { font-size: 2rem; margin-bottom: 3rem; }
-        .testimonial-card { background: #f8f9fa; padding: 2rem; border-radius: 12px; margin-bottom: 1.5rem; }
-        .testimonial-card p { font-size: 1.1rem; font-style: italic; color: #444; margin-bottom: 1rem; }
-        .testimonial-card strong { color: #888; font-size: 0.9rem; }
+        .cta { background: linear-gradient(135deg, #FF9900, #e68900); padding: 5rem 2rem; text-align: center; color: white; }
+        .cta h2 { font-size: 2.2rem; margin-bottom: 1rem; }
+        .cta p { margin-bottom: 2rem; font-size: 1.1rem; opacity: 0.9; max-width: 500px; margin: 0 auto 2rem; }
+        .cta-btn { background: white; color: #FF9900; padding: 1rem 2.5rem; border-radius: 8px; text-decoration: none; font-weight: 700; font-size: 1.1rem; display: inline-block; }
+        .cta-btn:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(0,0,0,0.2); }
 
-        .cta { background: #FF9900; padding: 4rem 2rem; text-align: center; color: white; }
-        .cta h2 { font-size: 2rem; margin-bottom: 1rem; }
-        .cta p { margin-bottom: 2rem; font-size: 1.1rem; opacity: 0.9; }
-        .cta-btn { background: white; color: #FF9900; padding: 1rem 2.5rem; border-radius: 8px; text-decoration: none; font-weight: 700; font-size: 1.1rem; }
-
-        footer { padding: 2rem; text-align: center; color: #888; font-size: 0.9rem; border-top: 1px solid #eee; }
+        footer {
+            padding: 2rem 3rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            color: #888;
+            font-size: 0.9rem;
+            border-top: 1px solid #eee;
+        }
 
         @media (max-width: 768px) {
             .features-grid { grid-template-columns: 1fr; }
             .pricing-grid { grid-template-columns: 1fr; }
             .hero h1 { font-size: 2rem; }
+            .stats { gap: 2rem; flex-wrap: wrap; }
+            nav { padding: 1rem; }
+            footer { flex-direction: column; gap: 1rem; text-align: center; }
         }
     </style>
 </head>
 <body>
 
 <nav>
-    <div class="logo">🛒 Agent Amazon</div>
-    <a href="https://agent-amazon-production.up.railway.app" class="nav-btn">Incepe Gratuit</a>
+    <div class="logo">🛒 Agent<span>Amazon</span></div>
+    <div class="nav-links">
+        <a href="https://agent-amazon-production.up.railway.app" class="nav-login">Login</a>
+        <a href="https://agent-amazon-production.up.railway.app" class="nav-btn">Incepe Gratuit</a>
+    </div>
 </nav>
 
 <section class="hero">
+    <div class="hero-badge">🤖 Powered by Claude AI</div>
     <h1>Creste vanzarile pe Amazon<br>cu <span>Inteligenta Artificiala</span></h1>
-    <p>Analizeaza automat produsele tale, identifica problemele si primesti recomandari concrete de la Claude AI — in fiecare zi.</p>
-    <a href="https://agent-amazon-production.up.railway.app" class="hero-btn">Incepe Gratuit — 0€</a>
-    <p class="hero-sub">Nu necesita card de credit • 2 produse gratuit</p>
+    <p>Analizeaza automat produsele tale, identifica problemele si primesti recomandari concrete — in fiecare zi, fara efort.</p>
+    <div class="hero-buttons">
+        <a href="https://agent-amazon-production.up.railway.app" class="hero-btn-primary">Incepe Gratuit — 0€</a>
+        <a href="https://agent-amazon-production.up.railway.app" class="hero-btn-secondary">Am deja cont →</a>
+    </div>
+    <p class="hero-sub">Nu necesita card de credit • 2 produse gratuit • Setup in 2 minute</p>
+</section>
+
+<section class="stats">
+    <div class="stat">
+        <div class="stat-num">29€</div>
+        <div class="stat-label">Plan Pro / lună</div>
+    </div>
+    <div class="stat">
+        <div class="stat-num">24/7</div>
+        <div class="stat-label">Monitorizare automata</div>
+    </div>
+    <div class="stat">
+        <div class="stat-num">AI</div>
+        <div class="stat-label">Powered by Claude</div>
+    </div>
+    <div class="stat">
+        <div class="stat-num">2 min</div>
+        <div class="stat-label">Setup rapid</div>
+    </div>
 </section>
 
 <section class="features">
     <h2>Tot ce ai nevoie intr-un singur tool</h2>
+    <p class="features-sub">De la analiza ACOS la reviewuri negative — totul automatizat cu AI</p>
     <div class="features-grid">
         <div class="feature-card">
             <div class="feature-icon">📊</div>
             <h3>Dashboard ACOS</h3>
-            <p>Monitorizeaza ACOS-ul si rating-ul tuturor produselor dintr-o singura privire.</p>
+            <p>Monitorizeaza ACOS-ul si rating-ul tuturor produselor dintr-o singura privire cu grafice interactive.</p>
         </div>
         <div class="feature-card">
             <div class="feature-icon">🤖</div>
-            <h3>Analiza AI cu Claude</h3>
-            <p>Claude analizeaza fiecare produs si iti da 2 actiuni concrete pentru imbunatatire.</p>
+            <h3>Agent AI Personal</h3>
+            <p>Conversatie directa cu agentul tau Amazon — iti cunoaste produsele si da recomandari personalizate.</p>
         </div>
         <div class="feature-card">
             <div class="feature-icon">💬</div>
             <h3>Analiza Reviewuri</h3>
-            <p>Incarca reviewurile negative si afla exact ce nemultumesc clientii tai.</p>
+            <p>Incarca reviewurile negative si afla exact ce nemultumesc clientii tai — cu solutii concrete.</p>
         </div>
         <div class="feature-card">
             <div class="feature-icon">📧</div>
             <h3>Email Automat Zilnic</h3>
-            <p>Primesti in fiecare dimineata un raport cu produsele care au probleme.</p>
+            <p>Primesti in fiecare dimineata un raport cu produsele care au probleme — fara sa faci nimic.</p>
         </div>
         <div class="feature-card">
             <div class="feature-icon">🔒</div>
-            <h3>Datele Tale, Sigure</h3>
-            <p>Fiecare seller vede doar produsele lui. Date stocate securizat in cloud.</p>
+            <h3>Date Securizate</h3>
+            <p>Fiecare seller vede doar produsele lui. Date stocate securizat cu autentificare completa.</p>
         </div>
         <div class="feature-card">
             <div class="feature-icon">⚡</div>
@@ -113,8 +261,35 @@
     </div>
 </section>
 
+<section class="how-it-works">
+    <h2>Cum functioneaza</h2>
+    <div class="steps">
+        <div class="step">
+            <div class="step-num">1</div>
+            <h3>Creaza cont gratuit</h3>
+            <p>Inregistrare in 30 secunde, fara card de credit</p>
+        </div>
+        <div class="step">
+            <div class="step-num">2</div>
+            <h3>Adauga produsele</h3>
+            <p>Introdu ACOS, rating si vanzarile tale</p>
+        </div>
+        <div class="step">
+            <div class="step-num">3</div>
+            <h3>AI analizeaza</h3>
+            <p>Claude identifica problemele si da recomandari</p>
+        </div>
+        <div class="step">
+            <div class="step-num">4</div>
+            <h3>Cresti vanzarile</h3>
+            <p>Implementezi actiunile si vezi rezultatele</p>
+        </div>
+    </div>
+</section>
+
 <section class="pricing">
     <h2>Preturi simple si transparente</h2>
+    <p class="pricing-sub">Fara costuri ascunse, fara contracte</p>
     <div class="pricing-grid">
         <div class="pricing-card">
             <h3>Gratuit</h3>
@@ -124,16 +299,19 @@
                 <li>Analiza AI de baza</li>
                 <li>Dashboard ACOS</li>
                 <li>Upload reviewuri</li>
+                <li>Agent AI conversational</li>
             </ul>
             <a href="https://agent-amazon-production.up.railway.app" class="pricing-btn free">Incepe Gratuit</a>
         </div>
         <div class="pricing-card featured">
-            <h3>Pro ⭐</h3>
+            <div class="featured-badge">⭐ Popular</div>
+            <h3>Pro</h3>
             <div class="price">29€ <span>/luna</span></div>
             <ul>
                 <li>Produse nelimitate</li>
                 <li>Analiza AI avansata</li>
                 <li>Email automat zilnic</li>
+                <li>Agent AI cu memorie</li>
                 <li>Prioritate support</li>
                 <li>Functii noi first</li>
             </ul>
@@ -145,11 +323,15 @@
 <section class="cta">
     <h2>Gata sa iti cresti vanzarile?</h2>
     <p>Alatura-te sellerilor Amazon care folosesc AI pentru a lua decizii mai bune.</p>
-    <a href="https://agent-amazon-production.up.railway.app" class="cta-btn">Incepe Gratuit Acum</a>
+    <a href="https://agent-amazon-production.up.railway.app" class="cta-btn">Incepe Gratuit Acum →</a>
 </section>
 
 <footer>
-    <p>© 2026 Agent Amazon — Construit cu Claude AI</p>
+    <div>© 2026 AgentAmazon — Powered by Claude AI</div>
+    <div>
+        <a href="https://agent-amazon-production.up.railway.app" style="color: #FF9900; text-decoration: none; margin-left: 1rem;">Login</a>
+        <a href="https://agent-amazon-production.up.railway.app" style="color: #FF9900; text-decoration: none; margin-left: 1rem;">Incepe Gratuit</a>
+    </div>
 </footer>
 
 </body>
