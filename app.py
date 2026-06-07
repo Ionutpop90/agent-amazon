@@ -72,14 +72,10 @@ def salveaza_istoric(user_id, produse):
         if len(existing.data) == 0:
             acos = (p['cheltuieli'] / p['vanzari']) * 100
             supabase.table("istoric_acos").insert({
-                "user_id": user_id,
-                "produs_id": p['id'],
-                "produs_nume": p['nume'],
-                "acos": acos,
-                "rating": p['rating'],
-                "vanzari": p['vanzari'],
-                "cheltuieli": p['cheltuieli'],
-                "data": today
+                "user_id": user_id, "produs_id": p['id'],
+                "produs_nume": p['nume'], "acos": acos,
+                "rating": p['rating'], "vanzari": p['vanzari'],
+                "cheltuieli": p['cheltuieli'], "data": today
             }).execute()
 
 def get_istoric(user_id, produs_id):
@@ -88,13 +84,10 @@ def get_istoric(user_id, produs_id):
 
 def genereaza_pdf(produse, email):
     buffer = io.BytesIO()
-    doc = SimpleDocTemplate(buffer, pagesize=A4,
-                           rightMargin=2*cm, leftMargin=2*cm,
-                           topMargin=2*cm, bottomMargin=2*cm)
+    doc = SimpleDocTemplate(buffer, pagesize=A4, rightMargin=2*cm, leftMargin=2*cm, topMargin=2*cm, bottomMargin=2*cm)
     styles = getSampleStyleSheet()
     story = []
-    title_style = ParagraphStyle('Title', parent=styles['Title'],
-                                fontSize=20, textColor=colors.HexColor('#FF9900'))
+    title_style = ParagraphStyle('Title', parent=styles['Title'], fontSize=20, textColor=colors.HexColor('#FF9900'))
     story.append(Paragraph("Agent Amazon — Raport Analiza", title_style))
     story.append(Paragraph(f"Generat pe {datetime.now().strftime('%d/%m/%Y %H:%M')} pentru {email}",
                            ParagraphStyle('Sub', parent=styles['Normal'], fontSize=10, textColor=colors.grey)))
@@ -104,24 +97,16 @@ def genereaza_pdf(produse, email):
     acos_list = [(p['cheltuieli'] / p['vanzari']) * 100 for p in produse]
     scor_mediu = sum(calculeaza_scor(p) for p in produse) / len(produse)
     rating_mediu = sum(p['rating'] for p in produse) / len(produse)
-    sumar_data = [
-        ['Metric', 'Valoare', 'Status'],
+    sumar_data = [['Metric', 'Valoare', 'Status'],
         ['Total Produse', str(len(produse)), '✓'],
         ['ACOS Mediu', f"{sum(acos_list)/len(acos_list):.1f}%", 'OK' if sum(acos_list)/len(acos_list) < 30 else 'Atentie'],
         ['Rating Mediu', f"{rating_mediu:.1f}/5.0", 'OK' if rating_mediu >= 4.0 else 'Atentie'],
-        ['Scor Sanatate', f"{scor_mediu:.0f}/100", 'OK' if scor_mediu >= 70 else 'Atentie'],
-    ]
+        ['Scor Sanatate', f"{scor_mediu:.0f}/100", 'OK' if scor_mediu >= 70 else 'Atentie']]
     t = Table(sumar_data, colWidths=[6*cm, 4*cm, 4*cm])
-    t.setStyle(TableStyle([
-        ('BACKGROUND', (0,0), (-1,0), colors.HexColor('#FF9900')),
-        ('TEXTCOLOR', (0,0), (-1,0), colors.white),
-        ('FONTNAME', (0,0), (-1,0), 'Helvetica-Bold'),
-        ('ALIGN', (0,0), (-1,-1), 'CENTER'),
-        ('ROWBACKGROUNDS', (0,1), (-1,-1), [colors.white, colors.HexColor('#f8f9fa')]),
-        ('GRID', (0,0), (-1,-1), 0.5, colors.HexColor('#dee2e6')),
-        ('FONTSIZE', (0,0), (-1,-1), 10),
-        ('PADDING', (0,0), (-1,-1), 8),
-    ]))
+    t.setStyle(TableStyle([('BACKGROUND', (0,0), (-1,0), colors.HexColor('#FF9900')),
+        ('TEXTCOLOR', (0,0), (-1,0), colors.white), ('FONTNAME', (0,0), (-1,0), 'Helvetica-Bold'),
+        ('ALIGN', (0,0), (-1,-1), 'CENTER'), ('ROWBACKGROUNDS', (0,1), (-1,-1), [colors.white, colors.HexColor('#f8f9fa')]),
+        ('GRID', (0,0), (-1,-1), 0.5, colors.HexColor('#dee2e6')), ('FONTSIZE', (0,0), (-1,-1), 10), ('PADDING', (0,0), (-1,-1), 8)]))
     story.append(t)
     story.append(Spacer(1, 0.5*cm))
     story.append(Paragraph("Detalii Produse", heading_style))
@@ -129,39 +114,13 @@ def genereaza_pdf(produse, email):
     for p in produse:
         acos = (p['cheltuieli'] / p['vanzari']) * 100
         scor = calculeaza_scor(p)
-        produse_data.append([p['nume'][:25], f"{p['vanzari']}€", f"{p['cheltuieli']}€",
-                             f"{acos:.1f}%", f"{p['rating']}/5.0", f"{scor}/100"])
+        produse_data.append([p['nume'][:25], f"{p['vanzari']}€", f"{p['cheltuieli']}€", f"{acos:.1f}%", f"{p['rating']}/5.0", f"{scor}/100"])
     t2 = Table(produse_data, colWidths=[5*cm, 2.5*cm, 2.5*cm, 2*cm, 2*cm, 2*cm])
-    t2.setStyle(TableStyle([
-        ('BACKGROUND', (0,0), (-1,0), colors.HexColor('#FF9900')),
-        ('TEXTCOLOR', (0,0), (-1,0), colors.white),
-        ('FONTNAME', (0,0), (-1,0), 'Helvetica-Bold'),
-        ('ALIGN', (0,0), (-1,-1), 'CENTER'),
-        ('ROWBACKGROUNDS', (0,1), (-1,-1), [colors.white, colors.HexColor('#f8f9fa')]),
-        ('GRID', (0,0), (-1,-1), 0.5, colors.HexColor('#dee2e6')),
-        ('FONTSIZE', (0,0), (-1,-1), 9),
-        ('PADDING', (0,0), (-1,-1), 6),
-    ]))
+    t2.setStyle(TableStyle([('BACKGROUND', (0,0), (-1,0), colors.HexColor('#FF9900')),
+        ('TEXTCOLOR', (0,0), (-1,0), colors.white), ('FONTNAME', (0,0), (-1,0), 'Helvetica-Bold'),
+        ('ALIGN', (0,0), (-1,-1), 'CENTER'), ('ROWBACKGROUNDS', (0,1), (-1,-1), [colors.white, colors.HexColor('#f8f9fa')]),
+        ('GRID', (0,0), (-1,-1), 0.5, colors.HexColor('#dee2e6')), ('FONTSIZE', (0,0), (-1,-1), 9), ('PADDING', (0,0), (-1,-1), 6)]))
     story.append(t2)
-    story.append(Spacer(1, 0.3*cm))
-    recomandari = genereaza_recomandari(produse)
-    if recomandari:
-        story.append(Paragraph("Recomandari Prioritare", heading_style))
-        rec_data = [['Prioritate', 'Actiune', 'Motiv']]
-        for rec in recomandari:
-            rec_data.append([rec['prioritate'], rec['actiune'][:40], rec['motiv'][:40]])
-        t3 = Table(rec_data, colWidths=[3*cm, 7*cm, 6*cm])
-        t3.setStyle(TableStyle([
-            ('BACKGROUND', (0,0), (-1,0), colors.HexColor('#FF9900')),
-            ('TEXTCOLOR', (0,0), (-1,0), colors.white),
-            ('FONTNAME', (0,0), (-1,0), 'Helvetica-Bold'),
-            ('ALIGN', (0,0), (-1,-1), 'LEFT'),
-            ('ROWBACKGROUNDS', (0,1), (-1,-1), [colors.white, colors.HexColor('#f8f9fa')]),
-            ('GRID', (0,0), (-1,-1), 0.5, colors.HexColor('#dee2e6')),
-            ('FONTSIZE', (0,0), (-1,-1), 9),
-            ('PADDING', (0,0), (-1,-1), 6),
-        ]))
-        story.append(t3)
     story.append(Spacer(1, 0.5*cm))
     story.append(Paragraph("Generat de Agent Amazon — Powered by Claude AI | amazonanalyzer.org",
                            ParagraphStyle('Footer', parent=styles['Normal'], fontSize=8, textColor=colors.grey)))
@@ -242,6 +201,8 @@ else:
             st.session_state.pagina = "Reviewuri"
         if st.button("🤖  Agent AI", use_container_width=True):
             st.session_state.pagina = "Agent"
+        if st.button("👤  Profil", use_container_width=True):
+            st.session_state.pagina = "Profil"
         st.divider()
         if is_pro:
             st.success("⭐ Plan Pro Activ")
@@ -295,18 +256,15 @@ else:
             with col1:
                 diff_acos = acos_mediu - benchmark['acos_mediu']
                 st.metric("ACOS tau vs Industrie", f"{acos_mediu:.1f}%",
-                         delta=f"{diff_acos:+.1f}% fata de {benchmark['acos_mediu']}%",
-                         delta_color="inverse")
+                         delta=f"{diff_acos:+.1f}% fata de {benchmark['acos_mediu']}%", delta_color="inverse")
             with col2:
                 diff_rating = rating_mediu - benchmark['rating_mediu']
                 st.metric("Rating tau vs Industrie", f"{rating_mediu:.1f}",
-                         delta=f"{diff_rating:+.1f} fata de {benchmark['rating_mediu']}",
-                         delta_color="normal")
+                         delta=f"{diff_rating:+.1f} fata de {benchmark['rating_mediu']}", delta_color="normal")
             with col3:
                 diff_scor = scor_mediu - benchmark['scor_mediu']
                 st.metric("Scor tau vs Industrie", f"{scor_mediu:.0f}/100",
-                         delta=f"{diff_scor:+.0f} fata de {benchmark['scor_mediu']:.0f}",
-                         delta_color="normal")
+                         delta=f"{diff_scor:+.0f} fata de {benchmark['scor_mediu']:.0f}", delta_color="normal")
 
             st.divider()
             st.subheader("📉 Istoric ACOS per produs")
@@ -315,10 +273,8 @@ else:
                 if len(istoric) > 1:
                     df_istoric = pd.DataFrame(istoric)
                     fig = px.line(df_istoric, x='data', y='acos',
-                                 title=f"Evolutie ACOS — {produs['nume']}",
-                                 markers=True)
+                                 title=f"Evolutie ACOS — {produs['nume']}", markers=True)
                     fig.add_hline(y=30, line_dash="dash", line_color="red", annotation_text="Limita 30%")
-                    fig.update_layout(xaxis_title="Data", yaxis_title="ACOS %")
                     st.plotly_chart(fig, use_container_width=True)
                 else:
                     st.info(f"📦 {produs['nume']} — Istoric disponibil dupa mai multe zile de date.")
@@ -329,13 +285,9 @@ else:
                 if st.button("📄 Export PDF", use_container_width=True):
                     with st.spinner("Generez raportul..."):
                         pdf_buffer = genereaza_pdf(produse, st.session_state.user.email)
-                        st.download_button(
-                            label="⬇️ Descarca PDF",
-                            data=pdf_buffer,
+                        st.download_button(label="⬇️ Descarca PDF", data=pdf_buffer,
                             file_name=f"raport_amazon_{datetime.now().strftime('%Y%m%d')}.pdf",
-                            mime="application/pdf",
-                            use_container_width=True
-                        )
+                            mime="application/pdf", use_container_width=True)
 
             recomandari = genereaza_recomandari(produse)
             if recomandari:
@@ -402,7 +354,6 @@ else:
                     }).execute()
                     st.success("Produs salvat!")
                     st.rerun()
-
         if len(produse) == 0:
             st.info("Nu ai produse adaugate inca.")
         else:
@@ -418,7 +369,6 @@ else:
                         supabase.table("produse").delete().eq("id", produs['id']).execute()
                         st.success("Produs sters!")
                         st.rerun()
-
             st.divider()
             if st.button("🔍 Analizeaza toate produsele", use_container_width=True):
                 for produs in produse:
@@ -483,3 +433,51 @@ else:
                     raspuns = model_lc.invoke(lc_messages)
                     st.write(raspuns.content)
                     st.session_state.messages_agent.append({"role": "assistant", "content": raspuns.content})
+
+    elif pagina == "Profil":
+        st.title("👤 Profilul Meu")
+        col1, col2 = st.columns([1, 2])
+        with col1:
+            st.markdown(f"""
+            <div style="background:#f8f9fa; padding:2rem; border-radius:12px; text-align:center;">
+                <div style="font-size:4rem;">👤</div>
+                <h3>{st.session_state.user.email}</h3>
+                <p style="color:#888;">Membru din {datetime.now().strftime('%B %Y')}</p>
+            </div>
+            """, unsafe_allow_html=True)
+
+        with col2:
+            st.subheader("Informatii Cont")
+            st.write(f"**Email:** {st.session_state.user.email}")
+            st.write(f"**Plan:** {'⭐ Pro' if is_pro else '🆓 Gratuit'}")
+            st.write(f"**Produse active:** {len(produse)}")
+            st.write(f"**ID Cont:** `{str(st.session_state.user.id)[:8]}...`")
+
+            st.divider()
+            st.subheader("Statistici")
+            if len(produse) > 0:
+                acos_list = [(p['cheltuieli'] / p['vanzari']) * 100 for p in produse]
+                scor_mediu = sum(calculeaza_scor(p) for p in produse) / len(produse)
+                col1, col2, col3 = st.columns(3)
+                with col1: st.metric("Produse", len(produse))
+                with col2: st.metric("ACOS Mediu", f"{sum(acos_list)/len(acos_list):.1f}%")
+                with col3:
+                    emoji, _ = culoare_scor(scor_mediu)
+                    st.metric("Scor Mediu", f"{scor_mediu:.0f} {emoji}")
+            else:
+                st.info("Adauga produse pentru a vedea statisticile.")
+
+            st.divider()
+            if not is_pro:
+                st.subheader("🚀 Upgrade la Pro")
+                st.write("Deblocheaza toate functiile — produse nelimitate, email zilnic, support prioritar.")
+                if st.button("⭐ Upgrade la Pro — 29€/lună", use_container_width=True, type="primary"):
+                    success, url = create_checkout_session(
+                        st.session_state.user.email, st.session_state.user.id,
+                        success_url="https://agent-amazon-production.up.railway.app?success=true",
+                        cancel_url="https://agent-amazon-production.up.railway.app?cancel=true"
+                    )
+                    if success:
+                        st.markdown(f"[👉 Plateste aici]({url})")
+            else:
+                st.success("⭐ Esti pe Plan Pro — ai acces la toate functiile!")
