@@ -5,3 +5,5 @@ supabase
 stripe
 plotly
 sendgrid
+langchain
+langchain-anthropic
