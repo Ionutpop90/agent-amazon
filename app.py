@@ -3,6 +3,8 @@ import streamlit as st
 import anthropic
 import pandas as pd
 import plotly.express as px
+from langchain_anthropic import ChatAnthropic
+from langchain_core.messages import HumanMessage, SystemMessage
 from auth import register_user, login_user, supabase
 from payments import create_checkout_session, activate_pro, check_pro
 
@@ -51,7 +53,7 @@ else:
         st.title("🛒 Agent Amazon")
         st.write(f"👤 {st.session_state.user.email}")
         st.divider()
-        pagina = st.radio("Navigare", ["📊 Dashboard", "📦 Produse", "💬 Reviewuri"])
+        pagina = st.radio("Navigare", ["📊 Dashboard", "📦 Produse", "💬 Reviewuri", "🤖 Agent AI"])
         st.divider()
 
         is_pro = check_pro(st.session_state.user.id)
@@ -204,3 +206,42 @@ else:
                                 ]
                             )
                             st.write(mesaj.content[0].text)
+
+    elif pagina == "🤖 Agent AI":
+        st.title("🤖 Agent AI Amazon")
+        st.write("Conversatie cu agentul tau personal Amazon")
+
+        if "messages_agent" not in st.session_state:
+            st.session_state.messages_agent = []
+
+        for msg in st.session_state.messages_agent:
+            with st.chat_message(msg["role"]):
+                st.write(msg["content"])
+
+        if prompt := st.chat_input("Intreaba agentul tau Amazon..."):
+            st.session_state.messages_agent.append({"role": "user", "content": prompt})
+            with st.chat_message("user"):
+                st.write(prompt)
+
+            with st.chat_message("assistant"):
+                with st.spinner("Agentul analizeaza..."):
+                    model_lc = ChatAnthropic(
+                        model="claude-haiku-4-5-20251001",
+                        api_key=api_key
+                    )
+
+                    context = f"Produsele userului: {produse}" if len(produse) > 0 else ""
+
+                    lc_messages = [
+                        SystemMessage(content=f"""Esti un expert Amazon care ajuta sellerii.
+                        Raspunzi mereu in romana. Esti direct si dai actiuni concrete.
+                        {context}""")
+                    ]
+
+                    for msg in st.session_state.messages_agent:
+                        if msg["role"] == "user":
+                            lc_messages.append(HumanMessage(content=msg["content"]))
+
+                    raspuns = model_lc.invoke(lc_messages)
+                    st.write(raspuns.content)
+                    st.session_state.messages_agent.append({"role": "assistant", "content": raspuns.content})
