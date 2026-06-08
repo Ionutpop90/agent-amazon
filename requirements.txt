@@ -8,3 +8,4 @@ sendgrid
 langchain
 langchain-anthropic
 reportlab
+openpyxl
