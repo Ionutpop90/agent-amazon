@@ -522,8 +522,13 @@ else:
 
             if csv_file is not None:
                 try:
-                    df_amazon = pd.read_csv(csv_file, sep=',')
-                    
+                    try:
+                        df_amazon = pd.read_csv(csv_file, sep='\t')
+                        if len(df_amazon.columns) < 5:
+                            df_amazon = pd.read_csv(csv_file, sep=',')
+                    except:
+                        df_amazon = pd.read_csv(csv_file, sep=',')
+
                     st.success(f"✅ Fisier incarcat: {len(df_amazon)} produse detectate")
                     st.dataframe(df_amazon[['(Child) ASIN', 'Title', 'Units ordered', 'Ordered Product Sales']].head(5) if '(Child) ASIN' in df_amazon.columns else df_amazon.head(5))
 
