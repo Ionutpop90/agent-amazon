@@ -317,6 +317,8 @@ else:
             st.session_state.pagina = "Reviewuri"
         if st.button("🤖  Agent AI", use_container_width=True):
             st.session_state.pagina = "Agent"
+        if st.button("📈  Rapoarte", use_container_width=True):
+            st.session_state.pagina = "Rapoarte"
         if st.button("👤  Profil", use_container_width=True):
             st.session_state.pagina = "Profil"
         st.divider()
@@ -647,6 +649,155 @@ else:
                     st.write(raspuns_text)
                     st.session_state.messages_agent.append({"role": "assistant", "content": raspuns_text})
 
+    elif pagina == "Rapoarte":
+        st.title("📈 Rapoarte Lunare")
+        st.info("Incarca raportul de vanzari si raportul PPC pentru aceeasi luna pentru a calcula ACOS si TACOS real.")
+
+        luna_selectata = st.selectbox("Selecteaza luna", [
+            "Iunie 2026", "Mai 2026", "Aprilie 2026", "Martie 2026",
+            "Februarie 2026", "Ianuarie 2026", "Decembrie 2025",
+            "Noiembrie 2025", "Octombrie 2025", "Septembrie 2025",
+            "August 2025", "Iulie 2025", "Iunie 2025",
+            "Mai 2025", "Aprilie 2025", "Martie 2025",
+            "Februarie 2025", "Ianuarie 2025"
+        ])
+
+        col1, col2 = st.columns(2)
+
+        with col1:
+            st.markdown("### 📦 Raport Vanzari")
+            st.caption("Seller Central → Business Reports → Detail page sales and traffic by child item")
+            csv_vanzari = st.file_uploader("Incarca CSV Vanzari", type="csv", key="csv_vanzari")
+
+        with col2:
+            st.markdown("### 📢 Raport PPC")
+            st.caption("Amazon Advertising → Sponsored ads reports → Advertised product report")
+            csv_ppc = st.file_uploader("Incarca CSV PPC", type="csv", key="csv_ppc")
+
+        if csv_vanzari and csv_ppc:
+            if st.button("🔍 Analizeaza", use_container_width=True, type="primary"):
+                with st.spinner("Se analizeaza datele..."):
+                    try:
+                        df_vanzari = pd.read_csv(csv_vanzari, sep=',', thousands=',', quotechar='"')
+                        df_ppc = pd.read_csv(csv_ppc, sep='\t')
+
+                        def curata_valoare(val):
+                            try:
+                                return float(str(val).replace('€', '').replace(',', '').replace(' ', '').strip())
+                            except:
+                                return 0.0
+
+                        df_ppc['Spend_clean'] = df_ppc['Spend'].apply(curata_valoare)
+                        df_ppc['Sales_clean'] = df_ppc['7 Day Total Sales'].apply(curata_valoare)
+
+                        ppc_per_asin = df_ppc.groupby('Advertised ASIN').agg(
+                            cheltuieli_ppc=('Spend_clean', 'sum'),
+                            vanzari_ppc=('Sales_clean', 'sum')
+                        ).reset_index()
+
+                        col_asin = '(Child) ASIN'
+                        col_sales = 'Ordered Product Sales'
+
+                        df_vanzari['Sales_clean'] = df_vanzari[col_sales].apply(curata_valoare)
+                        df_vanzari = df_vanzari[[col_asin, 'Title', 'Sales_clean']].copy()
+                        df_vanzari.columns = ['ASIN', 'Title', 'vanzari_totale']
+
+                        df_merge = df_vanzari.merge(ppc_per_asin, left_on='ASIN', right_on='Advertised ASIN', how='left')
+                        df_merge['cheltuieli_ppc'] = df_merge['cheltuieli_ppc'].fillna(0)
+                        df_merge['vanzari_ppc'] = df_merge['vanzari_ppc'].fillna(0)
+
+                        df_merge['ACOS %'] = df_merge.apply(
+                            lambda r: (r['cheltuieli_ppc'] / r['vanzari_ppc'] * 100) if r['vanzari_ppc'] > 0 else 0, axis=1)
+                        df_merge['TACOS %'] = df_merge.apply(
+                            lambda r: (r['cheltuieli_ppc'] / r['vanzari_totale'] * 100) if r['vanzari_totale'] > 0 else 0, axis=1)
+
+                        df_merge = df_merge[df_merge['vanzari_totale'] > 0].copy()
+
+                        st.divider()
+                        st.subheader(f"📊 Rezultate — {luna_selectata}")
+
+                        total_vanzari = df_merge['vanzari_totale'].sum()
+                        total_cheltuieli = df_merge['cheltuieli_ppc'].sum()
+                        tacos_total = (total_cheltuieli / total_vanzari * 100) if total_vanzari > 0 else 0
+
+                        col1, col2, col3, col4 = st.columns(4)
+                        with col1: st.metric("Total Vanzari", f"€{total_vanzari:,.0f}")
+                        with col2: st.metric("Total Cheltuieli PPC", f"€{total_cheltuieli:,.0f}")
+                        with col3: st.metric("TACOS Total", f"{tacos_total:.1f}%")
+                        with col4:
+                            profit_estimat = total_vanzari - total_cheltuieli
+                            st.metric("Vanzari - PPC", f"€{profit_estimat:,.0f}")
+
+                        st.divider()
+                        st.subheader("📦 ACOS si TACOS per Produs")
+
+                        for _, row in df_merge.iterrows():
+                            acos = row['ACOS %']
+                            tacos = row['TACOS %']
+
+                            if acos > 40:
+                                emoji = "🔴"
+                                status = "NEPROFITABIL"
+                            elif acos > 25:
+                                emoji = "🟡"
+                                status = "ATENTIE"
+                            else:
+                                emoji = "🟢"
+                                status = "PROFITABIL"
+
+                            with st.expander(f"{emoji} {row['Title'][:50]} ({row['ASIN']}) — {status}"):
+                                c1, c2, c3, c4 = st.columns(4)
+                                with c1: st.metric("Vanzari Totale", f"€{row['vanzari_totale']:,.0f}")
+                                with c2: st.metric("Cheltuieli PPC", f"€{row['cheltuieli_ppc']:,.0f}")
+                                with c3: st.metric("ACOS", f"{acos:.1f}%")
+                                with c4: st.metric("TACOS", f"{tacos:.1f}%")
+
+                        st.divider()
+                        st.subheader("📢 Analiza Campanii")
+
+                        df_ppc['ACOS_camp'] = df_ppc.apply(
+                            lambda r: (curata_valoare(r['Spend']) / curata_valoare(r['7 Day Total Sales']) * 100)
+                            if curata_valoare(r['7 Day Total Sales']) > 0 else 999, axis=1)
+
+                        col1, col2 = st.columns(2)
+                        with col1:
+                            st.markdown("#### 🔴 Campanii Neprofitabile (ACOS > 40%)")
+                            neprofitabile = df_ppc[df_ppc['ACOS_camp'] > 40].sort_values('ACOS_camp', ascending=False)
+                            for _, camp in neprofitabile.iterrows():
+                                st.warning(f"**{camp['Campaign Name']}** — ACOS {camp['ACOS_camp']:.0f}% | Cheltuieli €{curata_valoare(camp['Spend']):.0f}")
+
+                        with col2:
+                            st.markdown("#### 🟢 Campanii Profitabile (ACOS < 25%)")
+                            profitabile = df_ppc[df_ppc['ACOS_camp'] < 25].sort_values('ACOS_camp')
+                            for _, camp in profitabile.iterrows():
+                                st.success(f"**{camp['Campaign Name']}** — ACOS {camp['ACOS_camp']:.0f}% | Vanzari €{curata_valoare(camp['7 Day Total Sales']):.0f}")
+
+                        st.divider()
+                        raport_json = df_merge.to_dict('records')
+                        supabase.table("rapoarte_lunare").insert({
+                            "user_id": st.session_state.user.id,
+                            "luna": luna_selectata,
+                            "tip": "complet",
+                            "date_json": raport_json
+                        }).execute()
+                        st.success(f"✅ Raport {luna_selectata} salvat!")
+
+                    except Exception as e:
+                        st.error(f"❌ Eroare: {str(e)}")
+
+        elif csv_vanzari and not csv_ppc:
+            st.info("📢 Incarca si raportul PPC pentru a calcula ACOS si TACOS!")
+        elif csv_ppc and not csv_vanzari:
+            st.info("📦 Incarca si raportul de vanzari!")
+
+        st.divider()
+        st.subheader("📅 Istoric Rapoarte Salvate")
+        rapoarte_salvate = supabase.table("rapoarte_lunare").select("luna, created_at").eq("user_id", st.session_state.user.id).order("created_at", desc=True).execute()
+        if rapoarte_salvate.data:
+            for r in rapoarte_salvate.data:
+                st.write(f"✅ {r['luna']} — salvat pe {r['created_at'][:10]}")
+        else:
+            st.info("Nu ai rapoarte salvate inca.")
     elif pagina == "Profil":
         st.title("👤 Profilul Meu")
         col1, col2 = st.columns([1, 2])
