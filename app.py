@@ -30,6 +30,15 @@ if 'user' not in st.session_state:
 if 'pagina' not in st.session_state:
     st.session_state.pagina = "Dashboard"
 
+if not st.session_state.logged_in:
+    try:
+        session = supabase.auth.get_session()
+        if session and session.user:
+            st.session_state.logged_in = True
+            st.session_state.user = session.user
+    except:
+        pass
+
 def calculeaza_scor(produs):
     if produs['vanzari'] == 0:
         return 0
