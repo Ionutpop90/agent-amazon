@@ -105,10 +105,8 @@ def extrage_asin(link):
     return None
 
 def parseaza_vanzari_amazon(valoare):
-    """Converteste valoarea vanzarilor din format Amazon in numar"""
     try:
-        valoare = str(valoare).replace('€', '').replace(',', '.').strip()
-        valoare = re.sub(r'\s+', '', valoare)
+        valoare = str(valoare).replace('€', '').replace(',', '.').replace(' ', '').strip()
         return float(valoare)
     except:
         return 0.0
@@ -515,10 +513,8 @@ else:
 
             if csv_file is not None:
                 try:
-                    df_amazon = pd.read_csv(csv_file, sep='\t')
-                    if len(df_amazon.columns) < 3:
-                        df_amazon = pd.read_csv(csv_file, sep=',')
-
+                    df_amazon = pd.read_csv(csv_file, sep=',')
+                    
                     st.success(f"✅ Fisier incarcat: {len(df_amazon)} produse detectate")
                     st.dataframe(df_amazon[['(Child) ASIN', 'Title', 'Units ordered', 'Ordered Product Sales']].head(5) if '(Child) ASIN' in df_amazon.columns else df_amazon.head(5))
 
