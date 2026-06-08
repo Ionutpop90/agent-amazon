@@ -523,7 +523,7 @@ else:
             if csv_file is not None:
                 try:
                     try:
-                        df_amazon = pd.read_csv(csv_file, sep='\t')
+                        df_amazon = pd.read_csv(csv_file, sep=',', thousands=',', quotechar='"')
                         if len(df_amazon.columns) < 5:
                             df_amazon = pd.read_csv(csv_file, sep=',')
                     except:
