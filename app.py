@@ -104,17 +104,72 @@ def extrage_asin(link):
             return match.group(1)
     return None
 
-def extrage_nume_din_url(link):
+def parseaza_vanzari_amazon(valoare):
+    """Converteste valoarea vanzarilor din format Amazon in numar"""
     try:
-        parts = link.split('/')
-        for part in parts:
-            if len(part) > 10 and part not in ['dp', 'gp', 'product'] and not re.match(r'^[A-Z0-9]{10}$', part):
-                nume = part.replace('-', ' ').title()
-                if len(nume) > 5:
-                    return nume[:50]
+        valoare = str(valoare).replace('€', '').replace(',', '.').strip()
+        valoare = re.sub(r'\s+', '', valoare)
+        return float(valoare)
     except:
-        pass
-    return None
+        return 0.0
+
+def importa_raport_amazon(df_csv, user_id, cheltuieli_default=0, rating_default=4.0):
+    """Importa produsele din raportul CSV Amazon"""
+    importate = 0
+    erori = []
+
+    col_asin = None
+    col_title = None
+    col_units = None
+    col_sales = None
+
+    for col in df_csv.columns:
+        col_lower = col.lower().strip()
+        if 'child' in col_lower and 'asin' in col_lower:
+            col_asin = col
+        elif col_lower == 'title':
+            col_title = col
+        elif col_lower == 'units ordered' and 'b2b' not in col_lower:
+            col_units = col
+        elif 'ordered product sales' in col_lower and 'b2b' not in col_lower:
+            col_sales = col
+
+    if not col_asin or not col_title:
+        return 0, ["Format CSV invalid — nu am gasit coloanele necesare"]
+
+    for _, row in df_csv.iterrows():
+        try:
+            asin = str(row[col_asin]).strip()
+            if len(asin) != 10:
+                continue
+
+            title = str(row[col_title]).strip()[:60]
+            units = int(row[col_units]) if col_units and str(row[col_units]).strip() not in ['', 'nan'] else 0
+            sales_val = parseaza_vanzari_amazon(row[col_sales]) if col_sales else 0.0
+            vanzari_int = int(sales_val)
+
+            existing = supabase.table("produse").select("id").eq("user_id", user_id).ilike("nume", f"%{asin}%").execute()
+
+            if len(existing.data) == 0:
+                supabase.table("produse").insert({
+                    "user_id": user_id,
+                    "nume": f"{title[:45]} ({asin})",
+                    "vanzari": vanzari_int,
+                    "cheltuieli": cheltuieli_default,
+                    "rating": rating_default
+                }).execute()
+                importate += 1
+            else:
+                supabase.table("produse").update({
+                    "vanzari": vanzari_int,
+                    "nume": f"{title[:45]} ({asin})"
+                }).eq("id", existing.data[0]['id']).execute()
+                importate += 1
+
+        except Exception as e:
+            erori.append(f"Eroare la {row.get(col_asin, '?')}: {str(e)}")
+
+    return importate, erori
 
 def genereaza_pdf(produse, email):
     buffer = io.BytesIO()
@@ -147,11 +202,10 @@ def genereaza_pdf(produse, email):
     story.append(Spacer(1, 0.5*cm))
     story.append(Paragraph("Detalii Produse", heading_style))
     produse_data = [['Produs', 'Vanzari €', 'Cheltuieli €', 'ACOS %', 'Rating', 'Scor']]
-    for p in produse:
-        if p['vanzari'] > 0:
-            acos = (p['cheltuieli'] / p['vanzari']) * 100
-            scor = calculeaza_scor(p)
-            produse_data.append([p['nume'][:25], f"{p['vanzari']}€", f"{p['cheltuieli']}€", f"{acos:.1f}%", f"{p['rating']}/5.0", f"{scor}/100"])
+    for p in produse_valide:
+        acos = (p['cheltuieli'] / p['vanzari']) * 100
+        scor = calculeaza_scor(p)
+        produse_data.append([p['nume'][:25], f"{p['vanzari']}€", f"{p['cheltuieli']}€", f"{acos:.1f}%", f"{p['rating']}/5.0", f"{scor}/100"])
     t2 = Table(produse_data, colWidths=[5*cm, 2.5*cm, 2.5*cm, 2*cm, 2*cm, 2*cm])
     t2.setStyle(TableStyle([('BACKGROUND', (0,0), (-1,0), colors.HexColor('#FF9900')),
         ('TEXTCOLOR', (0,0), (-1,0), colors.white), ('FONTNAME', (0,0), (-1,0), 'Helvetica-Bold'),
@@ -390,7 +444,7 @@ else:
 
     elif pagina == "Produse":
         st.title("📦 Produsele tale")
-        tab1, tab2 = st.tabs(["➕ Adauga Manual", "🔗 Adauga din Link Amazon"])
+        tab1, tab2, tab3 = st.tabs(["➕ Adauga Manual", "🔗 Adauga din Link", "📊 Import Raport Amazon"])
 
         with tab1:
             with st.expander("➕ Adauga produs manual", expanded=True):
@@ -415,17 +469,15 @@ else:
 
         with tab2:
             st.markdown("### 🔗 Adauga produs din link Amazon")
-            st.info("Pune link-ul produsului tau de pe Amazon si vom extrage automat ASIN-ul!")
+            st.info("Pune link-ul produsului tau de pe Amazon!")
             link_amazon = st.text_input("Link Amazon", placeholder="https://www.amazon.es/dp/B08XYZ123...")
-
             if link_amazon:
                 asin = extrage_asin(link_amazon)
                 if asin:
                     st.success(f"✅ ASIN detectat: **{asin}**")
-                    nume_sugerat = extrage_nume_din_url(link_amazon) or ""
                     col1, col2 = st.columns(2)
                     with col1:
-                        nume_link = st.text_input("Nume produs", value=nume_sugerat, key="link_nume")
+                        nume_link = st.text_input("Nume produs", key="link_nume")
                         vanzari_link = st.number_input("Vanzari lunare (€)", min_value=0, key="link_vanzari")
                         cheltuieli_link = st.number_input("Cheltuieli publicitate (€)", min_value=0, key="link_cheltuieli")
                     with col2:
@@ -435,6 +487,8 @@ else:
                     if st.button("💾 Salveaza produs din link", use_container_width=True, type="primary"):
                         if not is_pro and len(produse) >= 2:
                             st.warning("⚠️ Limita 2 produse pe planul gratuit. Upgradeaza la Pro!")
+                        elif not nume_link:
+                            st.warning("⚠️ Introdu numele produsului!")
                         else:
                             supabase.table("produse").insert({
                                 "user_id": st.session_state.user.id,
@@ -446,8 +500,51 @@ else:
                             st.success(f"✅ Produs {asin} salvat!")
                             st.rerun()
                 else:
-                    st.error("❌ Nu am putut extrage ASIN-ul. Verifica ca link-ul e de pe Amazon!")
-                    st.code("Exemple:\nhttps://www.amazon.es/dp/B08XYZ123\nhttps://www.amazon.de/gp/product/B08XYZ123")
+                    st.error("❌ Nu am putut extrage ASIN-ul!")
+
+        with tab3:
+            st.markdown("### 📊 Import Raport Amazon Seller Central")
+            st.info("""**Cum descarci raportul:**
+1. Mergi in Amazon Seller Central → Reports → Business Reports
+2. Click pe **"Detail page sales and traffic by child item"**
+3. Seteaza perioada dorita (ex: ultima luna)
+4. Click **"Download (.csv)"**
+5. Incarca fișierul mai jos""")
+
+            csv_file = st.file_uploader("Incarca raportul CSV Amazon", type="csv", key="amazon_csv")
+
+            if csv_file is not None:
+                try:
+                    df_amazon = pd.read_csv(csv_file, sep='\t')
+                    if len(df_amazon.columns) < 3:
+                        df_amazon = pd.read_csv(csv_file, sep=',')
+
+                    st.success(f"✅ Fisier incarcat: {len(df_amazon)} produse detectate")
+                    st.dataframe(df_amazon[['(Child) ASIN', 'Title', 'Units ordered', 'Ordered Product Sales']].head(5) if '(Child) ASIN' in df_amazon.columns else df_amazon.head(5))
+
+                    st.divider()
+                    st.markdown("**Seteaza valorile implicite pentru cheltuieli:**")
+                    col1, col2 = st.columns(2)
+                    with col1:
+                        cheltuieli_default = st.number_input("Cheltuieli publicitate implicite (€)", min_value=0, value=0, key="import_cheltuieli")
+                    with col2:
+                        rating_default = st.number_input("Rating implicit", min_value=0.0, max_value=5.0, value=4.0, step=0.1, key="import_rating")
+
+                    st.info("💡 Poti actualiza cheltuielile si rating-ul pentru fiecare produs dupa import!")
+
+                    if st.button("🚀 Importa toate produsele", use_container_width=True, type="primary"):
+                        if not is_pro and len(produse) >= 2:
+                            st.warning("⚠️ Limita 2 produse pe planul gratuit. Upgradeaza la Pro!")
+                        else:
+                            with st.spinner("Se importa produsele..."):
+                                importate, erori = importa_raport_amazon(df_amazon, st.session_state.user.id, cheltuieli_default, rating_default)
+                                st.success(f"✅ {importate} produse importate/actualizate!")
+                                if erori:
+                                    st.warning(f"⚠️ {len(erori)} erori: {', '.join(erori[:3])}")
+                                st.rerun()
+
+                except Exception as e:
+                    st.error(f"❌ Eroare la citirea fisierului: {str(e)}")
 
         if len(produse) > 0:
             st.divider()
