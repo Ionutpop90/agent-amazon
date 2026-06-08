@@ -672,14 +672,17 @@ else:
         with col2:
             st.markdown("### 📢 Raport PPC")
             st.caption("Amazon Advertising → Sponsored ads reports → Advertised product report")
-            csv_ppc = st.file_uploader("Incarca CSV PPC", type="csv", key="csv_ppc")
+            csv_ppc = st.file_uploader("Incarca Raport PPC", type=["csv", "xlsx"], key="csv_ppc")
 
         if csv_vanzari and csv_ppc:
             if st.button("🔍 Analizeaza", use_container_width=True, type="primary"):
                 with st.spinner("Se analizeaza datele..."):
                     try:
                         df_vanzari = pd.read_csv(csv_vanzari, sep=',', thousands=',', quotechar='"')
-                        df_ppc = pd.read_csv(csv_ppc, sep='\t')
+                        if csv_ppc.name.endswith('.xlsx'):
+                            df_ppc = pd.read_excel(csv_ppc, engine='openpyxl')
+                        else:
+                            df_ppc = pd.read_csv(csv_ppc, sep='\t')
 
                         def curata_valoare(val):
                             try:
