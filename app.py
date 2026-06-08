@@ -31,6 +31,8 @@ if 'pagina' not in st.session_state:
     st.session_state.pagina = "Dashboard"
 
 def calculeaza_scor(produs):
+    if produs['vanzari'] == 0:
+        return 0
     scor = 100
     acos = (produs['cheltuieli'] / produs['vanzari']) * 100
     if produs['rating'] < 3.5: scor -= 40
@@ -52,6 +54,8 @@ def benchmark_industrie():
 def genereaza_recomandari(produse):
     recomandari = []
     for p in produse:
+        if p['vanzari'] == 0:
+            continue
         acos = (p['cheltuieli'] / p['vanzari']) * 100
         scor = calculeaza_scor(p)
         if p['rating'] < 4.0:
@@ -71,6 +75,8 @@ def genereaza_recomandari(produse):
 def salveaza_istoric(user_id, produse):
     today = date.today().isoformat()
     for p in produse:
+        if p['vanzari'] == 0:
+            continue
         existing = supabase.table("istoric_acos").select("id").eq("user_id", user_id).eq("produs_id", p['id']).eq("data", today).execute()
         if len(existing.data) == 0:
             acos = (p['cheltuieli'] / p['vanzari']) * 100
@@ -86,7 +92,6 @@ def get_istoric(user_id, produs_id):
     return result.data
 
 def extrage_asin(link):
-    """Extrage ASIN-ul din link Amazon"""
     patterns = [
         r'/dp/([A-Z0-9]{10})',
         r'/gp/product/([A-Z0-9]{10})',
@@ -100,11 +105,10 @@ def extrage_asin(link):
     return None
 
 def extrage_nume_din_url(link):
-    """Incearca sa extraga numele produsului din URL"""
     try:
         parts = link.split('/')
         for part in parts:
-            if len(part) > 10 and part not in ['dp', 'gp', 'product', 'ref='] and not part.startswith('B0'):
+            if len(part) > 10 and part not in ['dp', 'gp', 'product'] and not re.match(r'^[A-Z0-9]{10}$', part):
                 nume = part.replace('-', ' ').title()
                 if len(nume) > 5:
                     return nume[:50]
@@ -124,27 +128,30 @@ def genereaza_pdf(produse, email):
     story.append(Spacer(1, 0.5*cm))
     heading_style = ParagraphStyle('H2', parent=styles['Heading2'], fontSize=14)
     story.append(Paragraph("Sumar Portofoliu", heading_style))
-    acos_list = [(p['cheltuieli'] / p['vanzari']) * 100 for p in produse]
-    scor_mediu = sum(calculeaza_scor(p) for p in produse) / len(produse)
-    rating_mediu = sum(p['rating'] for p in produse) / len(produse)
-    sumar_data = [['Metric', 'Valoare', 'Status'],
-        ['Total Produse', str(len(produse)), '✓'],
-        ['ACOS Mediu', f"{sum(acos_list)/len(acos_list):.1f}%", 'OK' if sum(acos_list)/len(acos_list) < 30 else 'Atentie'],
-        ['Rating Mediu', f"{rating_mediu:.1f}/5.0", 'OK' if rating_mediu >= 4.0 else 'Atentie'],
-        ['Scor Sanatate', f"{scor_mediu:.0f}/100", 'OK' if scor_mediu >= 70 else 'Atentie']]
-    t = Table(sumar_data, colWidths=[6*cm, 4*cm, 4*cm])
-    t.setStyle(TableStyle([('BACKGROUND', (0,0), (-1,0), colors.HexColor('#FF9900')),
-        ('TEXTCOLOR', (0,0), (-1,0), colors.white), ('FONTNAME', (0,0), (-1,0), 'Helvetica-Bold'),
-        ('ALIGN', (0,0), (-1,-1), 'CENTER'), ('ROWBACKGROUNDS', (0,1), (-1,-1), [colors.white, colors.HexColor('#f8f9fa')]),
-        ('GRID', (0,0), (-1,-1), 0.5, colors.HexColor('#dee2e6')), ('FONTSIZE', (0,0), (-1,-1), 10), ('PADDING', (0,0), (-1,-1), 8)]))
-    story.append(t)
+    produse_valide = [p for p in produse if p['vanzari'] > 0]
+    if produse_valide:
+        acos_list = [(p['cheltuieli'] / p['vanzari']) * 100 for p in produse_valide]
+        scor_mediu = sum(calculeaza_scor(p) for p in produse_valide) / len(produse_valide)
+        rating_mediu = sum(p['rating'] for p in produse_valide) / len(produse_valide)
+        sumar_data = [['Metric', 'Valoare', 'Status'],
+            ['Total Produse', str(len(produse)), '✓'],
+            ['ACOS Mediu', f"{sum(acos_list)/len(acos_list):.1f}%", 'OK' if sum(acos_list)/len(acos_list) < 30 else 'Atentie'],
+            ['Rating Mediu', f"{rating_mediu:.1f}/5.0", 'OK' if rating_mediu >= 4.0 else 'Atentie'],
+            ['Scor Sanatate', f"{scor_mediu:.0f}/100", 'OK' if scor_mediu >= 70 else 'Atentie']]
+        t = Table(sumar_data, colWidths=[6*cm, 4*cm, 4*cm])
+        t.setStyle(TableStyle([('BACKGROUND', (0,0), (-1,0), colors.HexColor('#FF9900')),
+            ('TEXTCOLOR', (0,0), (-1,0), colors.white), ('FONTNAME', (0,0), (-1,0), 'Helvetica-Bold'),
+            ('ALIGN', (0,0), (-1,-1), 'CENTER'), ('ROWBACKGROUNDS', (0,1), (-1,-1), [colors.white, colors.HexColor('#f8f9fa')]),
+            ('GRID', (0,0), (-1,-1), 0.5, colors.HexColor('#dee2e6')), ('FONTSIZE', (0,0), (-1,-1), 10), ('PADDING', (0,0), (-1,-1), 8)]))
+        story.append(t)
     story.append(Spacer(1, 0.5*cm))
     story.append(Paragraph("Detalii Produse", heading_style))
     produse_data = [['Produs', 'Vanzari €', 'Cheltuieli €', 'ACOS %', 'Rating', 'Scor']]
     for p in produse:
-        acos = (p['cheltuieli'] / p['vanzari']) * 100
-        scor = calculeaza_scor(p)
-        produse_data.append([p['nume'][:25], f"{p['vanzari']}€", f"{p['cheltuieli']}€", f"{acos:.1f}%", f"{p['rating']}/5.0", f"{scor}/100"])
+        if p['vanzari'] > 0:
+            acos = (p['cheltuieli'] / p['vanzari']) * 100
+            scor = calculeaza_scor(p)
+            produse_data.append([p['nume'][:25], f"{p['vanzari']}€", f"{p['cheltuieli']}€", f"{acos:.1f}%", f"{p['rating']}/5.0", f"{scor}/100"])
     t2 = Table(produse_data, colWidths=[5*cm, 2.5*cm, 2.5*cm, 2*cm, 2*cm, 2*cm])
     t2.setStyle(TableStyle([('BACKGROUND', (0,0), (-1,0), colors.HexColor('#FF9900')),
         ('TEXTCOLOR', (0,0), (-1,0), colors.white), ('FONTNAME', (0,0), (-1,0), 'Helvetica-Bold'),
@@ -187,7 +194,7 @@ def calculeaza_profit(vanzari: int, acos: float, pret_produs: float, cost_produs
     venit_total = vanzari * pret_produs
     cost_total_produse = vanzari * cost_produs
     profit = venit_total - cheltuieli_ads - cost_total_produse
-    marja = (profit / venit_total) * 100
+    marja = (profit / venit_total) * 100 if venit_total > 0 else 0
     return f"Venit: {venit_total:.0f}€ | Ads: {cheltuieli_ads:.0f}€ | Cost produse: {cost_total_produse:.0f}€ | PROFIT: {profit:.0f}€ | Marja: {marja:.1f}% | {'✅ RENTABIL' if profit > 0 else '❌ PIERDERE'}"
 
 @tool
@@ -227,11 +234,12 @@ else:
     result = supabase.table("produse").select("*").eq("user_id", st.session_state.user.id).execute()
     produse = result.data
     is_pro = check_pro(st.session_state.user.id)
-    alerte = sum(1 for p in produse if p['rating'] < 4.0 or (p['cheltuieli']/p['vanzari'])*100 >= 30)
-    produse_cu_probleme = sum(1 for p in produse if calculeaza_scor(p) < 75)
+    produse_valide = [p for p in produse if p['vanzari'] > 0]
+    alerte = sum(1 for p in produse_valide if p['rating'] < 4.0 or (p['cheltuieli']/p['vanzari'])*100 >= 30)
+    produse_cu_probleme = sum(1 for p in produse_valide if calculeaza_scor(p) < 75)
 
-    if len(produse) > 0:
-        salveaza_istoric(st.session_state.user.id, produse)
+    if len(produse_valide) > 0:
+        salveaza_istoric(st.session_state.user.id, produse_valide)
 
     with st.sidebar:
         st.title("🛒 Agent Amazon")
@@ -277,12 +285,12 @@ else:
 
     if pagina == "Dashboard":
         st.title("📊 Dashboard")
-        if len(produse) == 0:
+        if len(produse_valide) == 0:
             show_onboarding()
         else:
-            acos_list = [(p['cheltuieli'] / p['vanzari']) * 100 for p in produse]
-            rating_mediu = sum(p['rating'] for p in produse) / len(produse)
-            scor_mediu = sum(calculeaza_scor(p) for p in produse) / len(produse)
+            acos_list = [(p['cheltuieli'] / p['vanzari']) * 100 for p in produse_valide]
+            rating_mediu = sum(p['rating'] for p in produse_valide) / len(produse_valide)
+            scor_mediu = sum(calculeaza_scor(p) for p in produse_valide) / len(produse_valide)
             acos_mediu = sum(acos_list) / len(acos_list)
             benchmark = benchmark_industrie()
 
@@ -315,7 +323,7 @@ else:
 
             st.divider()
             st.subheader("📉 Istoric ACOS per produs")
-            for produs in produse:
+            for produs in produse_valide:
                 istoric = get_istoric(st.session_state.user.id, produs['id'])
                 if len(istoric) > 1:
                     df_istoric = pd.DataFrame(istoric)
@@ -331,12 +339,12 @@ else:
             with col2:
                 if st.button("📄 Export PDF", use_container_width=True):
                     with st.spinner("Generez raportul..."):
-                        pdf_buffer = genereaza_pdf(produse, st.session_state.user.email)
+                        pdf_buffer = genereaza_pdf(produse_valide, st.session_state.user.email)
                         st.download_button(label="⬇️ Descarca PDF", data=pdf_buffer,
                             file_name=f"raport_amazon_{datetime.now().strftime('%Y%m%d')}.pdf",
                             mime="application/pdf", use_container_width=True)
 
-            recomandari = genereaza_recomandari(produse)
+            recomandari = genereaza_recomandari(produse_valide)
             if recomandari:
                 st.subheader("🎯 TOP 3 Actiuni pentru AZI")
                 for i, rec in enumerate(recomandari):
@@ -352,7 +360,7 @@ else:
 
             st.divider()
             st.subheader("💊 Scor Sanatate Produse")
-            for produs in produse:
+            for produs in produse_valide:
                 scor = calculeaza_scor(produs)
                 emoji, _ = culoare_scor(scor)
                 acos = (produs['cheltuieli'] / produs['vanzari']) * 100
@@ -365,7 +373,7 @@ else:
                 with col4: st.metric("ACOS", f"{acos:.1f}%")
 
             st.divider()
-            df = pd.DataFrame(produse)
+            df = pd.DataFrame(produse_valide)
             df['ACOS %'] = df.apply(lambda r: (r['cheltuieli']/r['vanzari'])*100, axis=1)
             df['Scor'] = df.apply(lambda r: calculeaza_scor(r), axis=1)
             col1, col2 = st.columns(2)
@@ -382,7 +390,6 @@ else:
 
     elif pagina == "Produse":
         st.title("📦 Produsele tale")
-
         tab1, tab2 = st.tabs(["➕ Adauga Manual", "🔗 Adauga din Link Amazon"])
 
         with tab1:
@@ -416,8 +423,6 @@ else:
                 if asin:
                     st.success(f"✅ ASIN detectat: **{asin}**")
                     nume_sugerat = extrage_nume_din_url(link_amazon) or ""
-
-                    st.markdown("**Completeaza datele produsului:**")
                     col1, col2 = st.columns(2)
                     with col1:
                         nume_link = st.text_input("Nume produs", value=nume_sugerat, key="link_nume")
@@ -425,9 +430,8 @@ else:
                         cheltuieli_link = st.number_input("Cheltuieli publicitate (€)", min_value=0, key="link_cheltuieli")
                     with col2:
                         rating_link = st.number_input("Rating", min_value=0.0, max_value=5.0, step=0.1, key="link_rating")
-                        st.text_input("ASIN", value=asin, disabled=True, key="link_asin")
+                        st.text_input("ASIN", value=asin, disabled=True)
                         marketplace = st.selectbox("Marketplace", ["amazon.es", "amazon.de", "amazon.fr", "amazon.it", "amazon.co.uk", "amazon.com"])
-
                     if st.button("💾 Salveaza produs din link", use_container_width=True, type="primary"):
                         if not is_pro and len(produse) >= 2:
                             st.warning("⚠️ Limita 2 produse pe planul gratuit. Upgradeaza la Pro!")
@@ -442,9 +446,8 @@ else:
                             st.success(f"✅ Produs {asin} salvat!")
                             st.rerun()
                 else:
-                    st.error("❌ Nu am putut extrage ASIN-ul. Verifica ca link-ul e de pe Amazon si contine /dp/ sau /gp/product/")
-                    st.markdown("**Exemple de linkuri valide:**")
-                    st.code("https://www.amazon.es/dp/B08XYZ123\nhttps://www.amazon.de/gp/product/B08XYZ123")
+                    st.error("❌ Nu am putut extrage ASIN-ul. Verifica ca link-ul e de pe Amazon!")
+                    st.code("Exemple:\nhttps://www.amazon.es/dp/B08XYZ123\nhttps://www.amazon.de/gp/product/B08XYZ123")
 
         if len(produse) > 0:
             st.divider()
@@ -452,7 +455,7 @@ else:
             for produs in produse:
                 scor = calculeaza_scor(produs)
                 emoji, _ = culoare_scor(scor)
-                acos = (produs['cheltuieli'] / produs['vanzari']) * 100
+                acos = (produs['cheltuieli'] / produs['vanzari']) * 100 if produs['vanzari'] > 0 else 0
                 col1, col2 = st.columns([5, 1])
                 with col1:
                     st.write(f"{emoji} **{produs['nume']}** — Rating: {produs['rating']} | ACOS: {acos:.1f}% | Scor: {scor}/100")
@@ -465,6 +468,8 @@ else:
             st.divider()
             if st.button("🔍 Analizeaza toate produsele", use_container_width=True):
                 for produs in produse:
+                    if produs['vanzari'] == 0:
+                        continue
                     scor = calculeaza_scor(produs)
                     emoji, _ = culoare_scor(scor)
                     acos = (produs['cheltuieli'] / produs['vanzari']) * 100
@@ -502,14 +507,11 @@ else:
     elif pagina == "Agent":
         st.title("🤖 Agent AI Amazon")
         st.info("💡 Intreaba agentul: 'Calculeaza profitul pentru 500 vanzari, ACOS 30%, pret 15€, cost 5€'")
-
         if "messages_agent" not in st.session_state:
             st.session_state.messages_agent = []
-
         for msg in st.session_state.messages_agent:
             with st.chat_message(msg["role"]):
                 st.write(msg["content"])
-
         if prompt := st.chat_input("Intreaba agentul tau Amazon..."):
             st.session_state.messages_agent.append({"role": "user", "content": prompt})
             with st.chat_message("user"):
@@ -518,10 +520,10 @@ else:
                 with st.spinner("Agentul analizeaza..."):
                     model_lc = ChatAnthropic(model="claude-haiku-4-5-20251001", api_key=api_key)
                     tools = [calculeaza_profit, calculeaza_acos_optim]
-                    scoruri = {p['nume']: calculeaza_scor(p) for p in produse}
+                    scoruri = {p['nume']: calculeaza_scor(p) for p in produse_valide}
                     lc_messages = [SystemMessage(content=f"""Esti un expert Amazon care ajuta sellerii romani.
                         Raspunzi MEREU in romana. Esti direct si dai actiuni concrete.
-                        Produsele userului: {produse}
+                        Produsele userului: {produse_valide}
                         Scoruri sanatate: {scoruri}
                         Benchmark industrie: {benchmark_industrie()}
                         Foloseste tool-urile pentru calcule financiare.""")]
@@ -557,9 +559,9 @@ else:
             st.write(f"**ID Cont:** `{str(st.session_state.user.id)[:8]}...`")
             st.divider()
             st.subheader("Statistici")
-            if len(produse) > 0:
-                acos_list = [(p['cheltuieli'] / p['vanzari']) * 100 for p in produse]
-                scor_mediu = sum(calculeaza_scor(p) for p in produse) / len(produse)
+            if len(produse_valide) > 0:
+                acos_list = [(p['cheltuieli'] / p['vanzari']) * 100 for p in produse_valide]
+                scor_mediu = sum(calculeaza_scor(p) for p in produse_valide) / len(produse_valide)
                 col1, col2, col3 = st.columns(3)
                 with col1: st.metric("Produse", len(produse))
                 with col2: st.metric("ACOS Mediu", f"{sum(acos_list)/len(acos_list):.1f}%")
@@ -571,7 +573,7 @@ else:
             st.divider()
             if not is_pro:
                 st.subheader("🚀 Upgrade la Pro")
-                st.write("Deblocheaza toate functiile — produse nelimitate, email zilnic, support prioritar.")
+                st.write("Deblocheaza toate functiile.")
                 if st.button("⭐ Upgrade la Pro — 29€/lună", use_container_width=True, type="primary"):
                     success, url = create_checkout_session(
                         st.session_state.user.email, st.session_state.user.id,
