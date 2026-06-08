@@ -1,5 +1,6 @@
 import os
 import io
+import re
 import streamlit as st
 import anthropic
 import pandas as pd
@@ -84,6 +85,33 @@ def get_istoric(user_id, produs_id):
     result = supabase.table("istoric_acos").select("*").eq("user_id", user_id).eq("produs_id", produs_id).order("data").execute()
     return result.data
 
+def extrage_asin(link):
+    """Extrage ASIN-ul din link Amazon"""
+    patterns = [
+        r'/dp/([A-Z0-9]{10})',
+        r'/gp/product/([A-Z0-9]{10})',
+        r'asin=([A-Z0-9]{10})',
+        r'/product/([A-Z0-9]{10})',
+    ]
+    for pattern in patterns:
+        match = re.search(pattern, link)
+        if match:
+            return match.group(1)
+    return None
+
+def extrage_nume_din_url(link):
+    """Incearca sa extraga numele produsului din URL"""
+    try:
+        parts = link.split('/')
+        for part in parts:
+            if len(part) > 10 and part not in ['dp', 'gp', 'product', 'ref='] and not part.startswith('B0'):
+                nume = part.replace('-', ' ').title()
+                if len(nume) > 5:
+                    return nume[:50]
+    except:
+        pass
+    return None
+
 def genereaza_pdf(produse, email):
     buffer = io.BytesIO()
     doc = SimpleDocTemplate(buffer, pagesize=A4, rightMargin=2*cm, leftMargin=2*cm, topMargin=2*cm, bottomMargin=2*cm)
@@ -152,35 +180,22 @@ def show_onboarding():
     with col2: st.info("🤖 **Agent AI personal**\nConversatie directa cu Claude")
     with col3: st.info("💬 **Analiza reviewuri**\nIdentifica problemele rapid")
 
-# TOOLS pentru Agent AI
 @tool
 def calculeaza_profit(vanzari: int, acos: float, pret_produs: float, cost_produs: float) -> str:
-    """Calculeaza profitul lunar al unui produs Amazon tinand cont de ACOS si costul produsului"""
+    """Calculeaza profitul lunar al unui produs Amazon"""
     cheltuieli_ads = vanzari * pret_produs * (acos / 100)
     venit_total = vanzari * pret_produs
     cost_total_produse = vanzari * cost_produs
     profit = venit_total - cheltuieli_ads - cost_total_produse
     marja = (profit / venit_total) * 100
-    return f"""
-    Venit total: {venit_total:.0f}€
-    Cheltuieli ads: {cheltuieli_ads:.0f}€
-    Cost produse: {cost_total_produse:.0f}€
-    PROFIT NET: {profit:.0f}€
-    Marja profit: {marja:.1f}%
-    Status: {'✅ RENTABIL' if profit > 0 else '❌ PIERDERE'}
-    """
+    return f"Venit: {venit_total:.0f}€ | Ads: {cheltuieli_ads:.0f}€ | Cost produse: {cost_total_produse:.0f}€ | PROFIT: {profit:.0f}€ | Marja: {marja:.1f}% | {'✅ RENTABIL' if profit > 0 else '❌ PIERDERE'}"
 
 @tool
 def calculeaza_acos_optim(marja_dorita: float, cost_produs: float, pret_vanzare: float) -> str:
-    """Calculeaza ACOS-ul maxim pentru a atinge marja de profit dorita"""
+    """Calculeaza ACOS-ul maxim pentru marja dorita"""
     marja_bruta = ((pret_vanzare - cost_produs) / pret_vanzare) * 100
     acos_maxim = marja_bruta - marja_dorita
-    return f"""
-    Marja bruta: {marja_bruta:.1f}%
-    Marja dorita: {marja_dorita:.1f}%
-    ACOS maxim recomandat: {acos_maxim:.1f}%
-    Daca ACOS-ul tau e peste {acos_maxim:.1f}%, produsul nu atinge marja dorita.
-    """
+    return f"Marja bruta: {marja_bruta:.1f}% | ACOS maxim recomandat: {acos_maxim:.1f}%"
 
 if not st.session_state.logged_in:
     col1, col2, col3 = st.columns([1, 2, 1])
@@ -243,8 +258,8 @@ else:
             if st.button("⭐ Upgrade Pro — 29€/lună", use_container_width=True):
                 success, url = create_checkout_session(
                     st.session_state.user.email, st.session_state.user.id,
-                    success_url="https://agent-amazon-production.up.railway.app?success=true",
-                    cancel_url="https://agent-amazon-production.up.railway.app?cancel=true"
+                    success_url="https://amazonanalyzer.org?success=true",
+                    cancel_url="https://amazonanalyzer.org?cancel=true"
                 )
                 if success:
                     st.markdown(f"[👉 Plateste aici]({url})")
@@ -367,28 +382,73 @@ else:
 
     elif pagina == "Produse":
         st.title("📦 Produsele tale")
-        with st.expander("➕ Adauga produs nou"):
-            nume = st.text_input("Nume produs")
-            col1, col2 = st.columns(2)
-            with col1:
-                vanzari = st.number_input("Vanzari lunare (€)", min_value=0)
-                cheltuieli = st.number_input("Cheltuieli publicitate (€)", min_value=0)
-            with col2:
-                rating = st.number_input("Rating", min_value=0.0, max_value=5.0, step=0.1)
-            if st.button("💾 Salveaza produs", use_container_width=True):
-                if not is_pro and len(produse) >= 2:
-                    st.warning("⚠️ Limita 2 produse pe planul gratuit. Upgradeaza la Pro!")
+
+        tab1, tab2 = st.tabs(["➕ Adauga Manual", "🔗 Adauga din Link Amazon"])
+
+        with tab1:
+            with st.expander("➕ Adauga produs manual", expanded=True):
+                nume = st.text_input("Nume produs", key="manual_nume")
+                col1, col2 = st.columns(2)
+                with col1:
+                    vanzari = st.number_input("Vanzari lunare (€)", min_value=0, key="manual_vanzari")
+                    cheltuieli = st.number_input("Cheltuieli publicitate (€)", min_value=0, key="manual_cheltuieli")
+                with col2:
+                    rating = st.number_input("Rating", min_value=0.0, max_value=5.0, step=0.1, key="manual_rating")
+                if st.button("💾 Salveaza produs", use_container_width=True):
+                    if not is_pro and len(produse) >= 2:
+                        st.warning("⚠️ Limita 2 produse pe planul gratuit. Upgradeaza la Pro!")
+                    else:
+                        supabase.table("produse").insert({
+                            "user_id": st.session_state.user.id,
+                            "nume": nume, "vanzari": vanzari,
+                            "cheltuieli": cheltuieli, "rating": rating
+                        }).execute()
+                        st.success("Produs salvat!")
+                        st.rerun()
+
+        with tab2:
+            st.markdown("### 🔗 Adauga produs din link Amazon")
+            st.info("Pune link-ul produsului tau de pe Amazon si vom extrage automat ASIN-ul!")
+            link_amazon = st.text_input("Link Amazon", placeholder="https://www.amazon.es/dp/B08XYZ123...")
+
+            if link_amazon:
+                asin = extrage_asin(link_amazon)
+                if asin:
+                    st.success(f"✅ ASIN detectat: **{asin}**")
+                    nume_sugerat = extrage_nume_din_url(link_amazon) or ""
+
+                    st.markdown("**Completeaza datele produsului:**")
+                    col1, col2 = st.columns(2)
+                    with col1:
+                        nume_link = st.text_input("Nume produs", value=nume_sugerat, key="link_nume")
+                        vanzari_link = st.number_input("Vanzari lunare (€)", min_value=0, key="link_vanzari")
+                        cheltuieli_link = st.number_input("Cheltuieli publicitate (€)", min_value=0, key="link_cheltuieli")
+                    with col2:
+                        rating_link = st.number_input("Rating", min_value=0.0, max_value=5.0, step=0.1, key="link_rating")
+                        st.text_input("ASIN", value=asin, disabled=True, key="link_asin")
+                        marketplace = st.selectbox("Marketplace", ["amazon.es", "amazon.de", "amazon.fr", "amazon.it", "amazon.co.uk", "amazon.com"])
+
+                    if st.button("💾 Salveaza produs din link", use_container_width=True, type="primary"):
+                        if not is_pro and len(produse) >= 2:
+                            st.warning("⚠️ Limita 2 produse pe planul gratuit. Upgradeaza la Pro!")
+                        else:
+                            supabase.table("produse").insert({
+                                "user_id": st.session_state.user.id,
+                                "nume": f"{nume_link} ({asin})",
+                                "vanzari": vanzari_link,
+                                "cheltuieli": cheltuieli_link,
+                                "rating": rating_link
+                            }).execute()
+                            st.success(f"✅ Produs {asin} salvat!")
+                            st.rerun()
                 else:
-                    supabase.table("produse").insert({
-                        "user_id": st.session_state.user.id,
-                        "nume": nume, "vanzari": vanzari,
-                        "cheltuieli": cheltuieli, "rating": rating
-                    }).execute()
-                    st.success("Produs salvat!")
-                    st.rerun()
-        if len(produse) == 0:
-            st.info("Nu ai produse adaugate inca.")
-        else:
+                    st.error("❌ Nu am putut extrage ASIN-ul. Verifica ca link-ul e de pe Amazon si contine /dp/ sau /gp/product/")
+                    st.markdown("**Exemple de linkuri valide:**")
+                    st.code("https://www.amazon.es/dp/B08XYZ123\nhttps://www.amazon.de/gp/product/B08XYZ123")
+
+        if len(produse) > 0:
+            st.divider()
+            st.subheader("Produsele tale")
             for produs in produse:
                 scor = calculeaza_scor(produs)
                 emoji, _ = culoare_scor(scor)
@@ -401,6 +461,7 @@ else:
                         supabase.table("produse").delete().eq("id", produs['id']).execute()
                         st.success("Produs sters!")
                         st.rerun()
+
             st.divider()
             if st.button("🔍 Analizeaza toate produsele", use_container_width=True):
                 for produs in produse:
@@ -440,7 +501,7 @@ else:
 
     elif pagina == "Agent":
         st.title("🤖 Agent AI Amazon")
-        st.info("💡 Agentul poate calcula automat profitul si ACOS-ul optim! Intreaba-l: 'Calculeaza profitul pentru 500 vanzari, ACOS 30%, pret 15€, cost 5€'")
+        st.info("💡 Intreaba agentul: 'Calculeaza profitul pentru 500 vanzari, ACOS 30%, pret 15€, cost 5€'")
 
         if "messages_agent" not in st.session_state:
             st.session_state.messages_agent = []
@@ -455,37 +516,25 @@ else:
                 st.write(prompt)
             with st.chat_message("assistant"):
                 with st.spinner("Agentul analizeaza..."):
-                    import warnings
-                    warnings.filterwarnings("ignore")
-                    from langgraph.prebuilt import create_react_agent
-                    from langchain_core.prompts import ChatPromptTemplate
-
                     model_lc = ChatAnthropic(model="claude-haiku-4-5-20251001", api_key=api_key)
                     tools = [calculeaza_profit, calculeaza_acos_optim]
                     scoruri = {p['nume']: calculeaza_scor(p) for p in produse}
-
-                    system_prompt = f"""Esti un expert Amazon care ajuta sellerii romani.
-                    Raspunzi MEREU in romana. Esti direct si dai actiuni concrete.
-                    Produsele userului: {produse}
-                    Scoruri sanatate: {scoruri}
-                    Benchmark industrie: {benchmark_industrie()}
-                    
-                    Ai acces la tool-uri pentru calcul profit si ACOS optim.
-                    Foloseste-le cand userul cere calcule financiare."""
-
-                    lc_messages = [SystemMessage(content=system_prompt)]
+                    lc_messages = [SystemMessage(content=f"""Esti un expert Amazon care ajuta sellerii romani.
+                        Raspunzi MEREU in romana. Esti direct si dai actiuni concrete.
+                        Produsele userului: {produse}
+                        Scoruri sanatate: {scoruri}
+                        Benchmark industrie: {benchmark_industrie()}
+                        Foloseste tool-urile pentru calcule financiare.""")]
                     for msg in st.session_state.messages_agent:
                         if msg["role"] == "user":
                             lc_messages.append(HumanMessage(content=msg["content"]))
-
                     try:
-                        agent = langgraph.prebuilt.create_react_agent(model=model_lc, tools=tools)
+                        agent = create_react_agent(model=model_lc, tools=tools)
                         rezultat = agent.invoke({"messages": lc_messages})
                         raspuns_text = rezultat["messages"][-1].content
                     except Exception:
                         raspuns = model_lc.invoke(lc_messages)
                         raspuns_text = raspuns.content
-
                     st.write(raspuns_text)
                     st.session_state.messages_agent.append({"role": "assistant", "content": raspuns_text})
 
@@ -526,8 +575,8 @@ else:
                 if st.button("⭐ Upgrade la Pro — 29€/lună", use_container_width=True, type="primary"):
                     success, url = create_checkout_session(
                         st.session_state.user.email, st.session_state.user.id,
-                        success_url="https://agent-amazon-production.up.railway.app?success=true",
-                        cancel_url="https://agent-amazon-production.up.railway.app?cancel=true"
+                        success_url="https://amazonanalyzer.org?success=true",
+                        cancel_url="https://amazonanalyzer.org?cancel=true"
                     )
                     if success:
                         st.markdown(f"[👉 Plateste aici]({url})")
