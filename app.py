@@ -649,18 +649,19 @@ else:
                     st.write(raspuns_text)
                     st.session_state.messages_agent.append({"role": "assistant", "content": raspuns_text})
 
-    elif pagina == "Rapoarte":
+   elif pagina == "Rapoarte":
         st.title("📈 Rapoarte Lunare")
         st.info("Incarca raportul de vanzari si raportul PPC pentru aceeasi luna pentru a calcula ACOS si TACOS real.")
 
-        luna_selectata = st.selectbox("Selecteaza luna", [
-            "Iunie 2026", "Mai 2026", "Aprilie 2026", "Martie 2026",
-            "Februarie 2026", "Ianuarie 2026", "Decembrie 2025",
-            "Noiembrie 2025", "Octombrie 2025", "Septembrie 2025",
-            "August 2025", "Iulie 2025", "Iunie 2025",
-            "Mai 2025", "Aprilie 2025", "Martie 2025",
-            "Februarie 2025", "Ianuarie 2025"
-        ])
+        luni_display = {
+            "2026-06": "Iunie 2026", "2026-05": "Mai 2026", "2026-04": "Aprilie 2026",
+            "2026-03": "Martie 2026", "2026-02": "Februarie 2026", "2026-01": "Ianuarie 2026",
+            "2025-12": "Decembrie 2025", "2025-11": "Noiembrie 2025", "2025-10": "Octombrie 2025",
+            "2025-09": "Septembrie 2025", "2025-08": "August 2025", "2025-07": "Iulie 2025",
+            "2025-06": "Iunie 2025", "2025-05": "Mai 2025", "2025-04": "Aprilie 2025",
+            "2025-03": "Martie 2025", "2025-02": "Februarie 2025", "2025-01": "Ianuarie 2025"
+        }
+        luna_selectata = st.selectbox("Selecteaza luna", list(luni_display.keys()), format_func=lambda x: luni_display[x])
 
         col1, col2 = st.columns(2)
 
@@ -668,7 +669,6 @@ else:
             st.markdown("### 📦 Raport Vanzari")
             st.caption("Seller Central → Business Reports → Detail page sales and traffic by child item")
             csv_vanzari = st.file_uploader("Incarca CSV Vanzari", type="csv", key="csv_vanzari")
-
         with col2:
             st.markdown("### 📢 Raport PPC")
             st.caption("Amazon Advertising → Sponsored ads reports → Advertised product report")
