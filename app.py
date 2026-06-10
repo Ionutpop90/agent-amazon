@@ -611,24 +611,23 @@ else:
                         st.rerun()
 
                 if st.session_state.get(f"editing_{produs['id']}", False):
-                    with st.form(key=f"form_{produs['id']}"):
-                        col1, col2 = st.columns(2)
-                        with col1:
-                            new_nume = st.text_input("Nume produs", value=produs['nume'])
-                            new_vanzari = st.number_input("Vanzari lunare (€)", min_value=0, value=int(produs['vanzari']))
-                        with col2:
-                            new_cheltuieli = st.number_input("Cheltuieli publicitate (€)", min_value=0, value=int(produs['cheltuieli']))
-                            new_rating = st.number_input("Rating", min_value=0.0, max_value=5.0, step=0.1, value=float(produs['rating']))
-                        if st.form_submit_button("💾 Salveaza modificarile", use_container_width=True, type="primary"):
-                            supabase.table("produse").update({
-                                "nume": new_nume,
-                                "vanzari": new_vanzari,
-                                "cheltuieli": new_cheltuieli,
-                                "rating": new_rating
-                            }).eq("id", produs['id']).execute()
-                            st.session_state[f"editing_{produs['id']}"] = False
-                            st.success("✅ Produs actualizat!")
-                            st.rerun()
+                    col1, col2 = st.columns(2)
+                    with col1:
+                        new_nume = st.text_input("Nume produs", value=produs['nume'], key=f"nume_{produs['id']}")
+                        new_vanzari = st.number_input("Vanzari lunare (€)", min_value=0, value=int(produs['vanzari']), key=f"vanzari_{produs['id']}")
+                    with col2:
+                        new_cheltuieli = st.number_input("Cheltuieli publicitate (€)", min_value=0, value=int(produs['cheltuieli']), key=f"cheltuieli_{produs['id']}")
+                        new_rating = st.number_input("Rating", min_value=0.0, max_value=5.0, step=0.1, value=float(produs['rating']), key=f"rating_{produs['id']}")
+                    if st.button("💾 Salveaza modificarile", key=f"save_{produs['id']}", type="primary", use_container_width=True):
+                        supabase.table("produse").update({
+                            "nume": new_nume,
+                            "vanzari": new_vanzari,
+                            "cheltuieli": new_cheltuieli,
+                            "rating": new_rating
+                        }).eq("id", produs['id']).execute()
+                        st.session_state[f"editing_{produs['id']}"] = False
+                        st.success("✅ Produs actualizat!")
+                        st.rerun()
             st.divider()
             if st.button("🔍 Analizeaza toate produsele", use_container_width=True):
                 for produs in produse:
