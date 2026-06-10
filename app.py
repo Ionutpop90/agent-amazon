@@ -701,10 +701,24 @@ else:
 
         st.divider()
         st.subheader("📅 Istoric Rapoarte Salvate")
-        rapoarte_salvate = supabase.table("rapoarte_lunare").select("luna, created_at").eq("user_id", st.session_state.user.id).order("created_at", desc=True).execute()
+        rapoarte_salvate = supabase.table("rapoarte_lunare").select("*").eq("user_id", st.session_state.user.id).order("created_at", desc=True).execute()
         if rapoarte_salvate.data:
             for r in rapoarte_salvate.data:
-                st.write(f"✅ {r['luna'][:7]} — salvat pe {r['created_at'][:10]}")
+                col1, col2, col3 = st.columns([3, 1, 1])
+                with col1:
+                    st.write(f"✅ {r['luna'][:7]} — salvat pe {r['created_at'][:10]}")
+                with col2:
+                    if st.button("👁️ Vezi", key=f"vezi_{r['id']}"):
+                        st.session_state[f"show_raport_{r['id']}"] = True
+                with col3:
+                    if st.button("🗑️ Sterge", key=f"del_raport_{r['id']}"):
+                        supabase.table("rapoarte_lunare").delete().eq("id", r['id']).execute()
+                        st.success("Raport sters!")
+                        st.rerun()
+
+                if st.session_state.get(f"show_raport_{r['id']}", False):
+                    df_saved = pd.DataFrame(r['date_json'])
+                    st.dataframe(df_saved, use_container_width=True)
         else:
             st.info("Nu ai rapoarte salvate inca.")
 
