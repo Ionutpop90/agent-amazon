@@ -598,14 +598,37 @@ else:
                 scor = calculeaza_scor(produs)
                 emoji, _ = culoare_scor(scor)
                 acos = (produs['cheltuieli'] / produs['vanzari']) * 100 if produs['vanzari'] > 0 else 0
-                col1, col2 = st.columns([5, 1])
+                col1, col2, col3 = st.columns([5, 1, 1])
                 with col1:
                     st.write(f"{emoji} **{produs['nume']}** — Rating: {produs['rating']} | ACOS: {acos:.1f}% | Scor: {scor}/100")
                 with col2:
+                    if st.button("✏️ Editeaza", key=f"edit_{produs['id']}"):
+                        st.session_state[f"editing_{produs['id']}"] = not st.session_state.get(f"editing_{produs['id']}", False)
+                with col3:
                     if st.button("🗑️ Sterge", key=f"del_{produs['id']}"):
                         supabase.table("produse").delete().eq("id", produs['id']).execute()
                         st.success("Produs sters!")
                         st.rerun()
+
+                if st.session_state.get(f"editing_{produs['id']}", False):
+                    with st.form(key=f"form_{produs['id']}"):
+                        col1, col2 = st.columns(2)
+                        with col1:
+                            new_nume = st.text_input("Nume produs", value=produs['nume'])
+                            new_vanzari = st.number_input("Vanzari lunare (€)", min_value=0, value=int(produs['vanzari']))
+                        with col2:
+                            new_cheltuieli = st.number_input("Cheltuieli publicitate (€)", min_value=0, value=int(produs['cheltuieli']))
+                            new_rating = st.number_input("Rating", min_value=0.0, max_value=5.0, step=0.1, value=float(produs['rating']))
+                        if st.form_submit_button("💾 Salveaza modificarile", use_container_width=True, type="primary"):
+                            supabase.table("produse").update({
+                                "nume": new_nume,
+                                "vanzari": new_vanzari,
+                                "cheltuieli": new_cheltuieli,
+                                "rating": new_rating
+                            }).eq("id", produs['id']).execute()
+                            st.session_state[f"editing_{produs['id']}"] = False
+                            st.success("✅ Produs actualizat!")
+                            st.rerun()
             st.divider()
             if st.button("🔍 Analizeaza toate produsele", use_container_width=True):
                 for produs in produse:
