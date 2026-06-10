@@ -119,19 +119,11 @@ def curata_valoare(val):
     except:
         return 0.0
 
-def parseaza_vanzari_amazon(valoare):
-    try:
-        valoare = str(valoare).replace('€', '').replace(',', '.').replace(' ', '').strip()
-        return float(valoare)
-    except:
-        return 0.0
-
 def importa_raport_amazon(df_csv, user_id, cheltuieli_default=0, rating_default=4.0):
     importate = 0
     erori = []
     col_asin = None
     col_title = None
-    col_units = None
     col_sales = None
     for col in df_csv.columns:
         col_lower = col.lower().strip()
@@ -139,8 +131,6 @@ def importa_raport_amazon(df_csv, user_id, cheltuieli_default=0, rating_default=
             col_asin = col
         elif col_lower == 'title':
             col_title = col
-        elif col_lower == 'units ordered' and 'b2b' not in col_lower:
-            col_units = col
         elif 'ordered product sales' in col_lower and 'b2b' not in col_lower:
             col_sales = col
     if not col_asin or not col_title:
@@ -477,7 +467,6 @@ else:
 
         with tab2:
             st.markdown("### 🔗 Adauga produs din link Amazon")
-            st.info("Pune link-ul produsului tau de pe Amazon!")
             link_amazon = st.text_input("Link Amazon", placeholder="https://www.amazon.es/dp/B08XYZ123...")
             if link_amazon:
                 asin = extrage_asin(link_amazon)
@@ -491,10 +480,10 @@ else:
                     with col2:
                         rating_link = st.number_input("Rating", min_value=0.0, max_value=5.0, step=0.1, key="link_rating")
                         st.text_input("ASIN", value=asin, disabled=True)
-                        marketplace = st.selectbox("Marketplace", ["amazon.es", "amazon.de", "amazon.fr", "amazon.it", "amazon.co.uk", "amazon.com"])
+                        st.selectbox("Marketplace", ["amazon.es", "amazon.de", "amazon.fr", "amazon.it", "amazon.co.uk", "amazon.com"])
                     if st.button("💾 Salveaza produs din link", use_container_width=True, type="primary"):
                         if not is_pro and len(produse) >= 2:
-                            st.warning("⚠️ Limita 2 produse pe planul gratuit. Upgradeaza la Pro!")
+                            st.warning("⚠️ Limita 2 produse pe planul gratuit!")
                         elif not nume_link:
                             st.warning("⚠️ Introdu numele produsului!")
                         else:
@@ -513,35 +502,31 @@ else:
         with tab3:
             st.markdown("### 📊 Import Raport Amazon Seller Central")
             st.info("""**Cum descarci raportul:**
-1. Mergi in Amazon Seller Central → Reports → Business Reports
+1. Seller Central → Reports → Business Reports
 2. Click pe **"Detail page sales and traffic by child item"**
 3. Seteaza perioada dorita
-4. Click **"Download (.csv)"**
-5. Incarca fisierul mai jos""")
+4. Click **"Download (.csv)"**""")
             csv_file = st.file_uploader("Incarca raportul CSV Amazon", type="csv", key="amazon_csv")
             if csv_file is not None:
                 try:
                     df_amazon = pd.read_csv(csv_file, sep=',', thousands=',', quotechar='"')
-                    st.success(f"✅ Fisier incarcat: {len(df_amazon)} randuri detectate")
+                    st.success(f"✅ {len(df_amazon)} randuri detectate")
                     st.dataframe(df_amazon[['(Child) ASIN', 'Title', 'Units ordered', 'Ordered Product Sales']].head(5) if '(Child) ASIN' in df_amazon.columns else df_amazon.head(5))
-                    st.divider()
                     col1, col2 = st.columns(2)
                     with col1:
-                        cheltuieli_default = st.number_input("Cheltuieli publicitate implicite (€)", min_value=0, value=0, key="import_cheltuieli")
+                        cheltuieli_default = st.number_input("Cheltuieli implicite (€)", min_value=0, value=0, key="import_cheltuieli")
                     with col2:
                         rating_default = st.number_input("Rating implicit", min_value=0.0, max_value=5.0, value=4.0, step=0.1, key="import_rating")
                     if st.button("🚀 Importa toate produsele", use_container_width=True, type="primary"):
                         if not is_pro and len(produse) >= 2:
-                            st.warning("⚠️ Limita 2 produse pe planul gratuit. Upgradeaza la Pro!")
+                            st.warning("⚠️ Limita 2 produse pe planul gratuit!")
                         else:
-                            with st.spinner("Se importa produsele..."):
+                            with st.spinner("Se importa..."):
                                 importate, erori = importa_raport_amazon(df_amazon, st.session_state.user.id, cheltuieli_default, rating_default)
-                                st.success(f"✅ {importate} produse importate/actualizate!")
-                                if erori:
-                                    st.warning(f"⚠️ {len(erori)} erori")
+                                st.success(f"✅ {importate} produse importate!")
                                 st.rerun()
                 except Exception as e:
-                    st.error(f"❌ Eroare la citirea fisierului: {str(e)}")
+                    st.error(f"❌ Eroare: {str(e)}")
 
         if len(produse) > 0:
             st.divider()
@@ -601,47 +586,6 @@ else:
             st.markdown("### 📢 Raport PPC")
             st.caption("Amazon Advertising → Sponsored ads reports → Advertised product report")
             csv_ppc = st.file_uploader("Incarca Raport PPC", type=["csv", "xlsx"], key="csv_ppc")
-            if csv_search is not None:
-                            st.divider()
-                            st.subheader("🔍 Analiza Search Terms")
-                            if csv_search.name.endswith('.xlsx'):
-                                df_search = pd.read_excel(csv_search, engine='openpyxl')
-                            else:
-                                df_search = pd.read_csv(csv_search, sep='\t')
-
-                            df_search['Spend_s'] = df_search['Spend'].apply(curata_valoare)
-                            df_search['Sales_s'] = df_search['7 Day Total Sales'].apply(curata_valoare)
-                            df_search['Clicks_s'] = pd.to_numeric(df_search['Clicks'], errors='coerce').fillna(0)
-
-                            search_agg = df_search.groupby('Customer Search Term').agg(
-                                clicks=('Clicks_s', 'sum'),
-                                spend=('Spend_s', 'sum'),
-                                sales=('Sales_s', 'sum')
-                            ).reset_index()
-
-                            search_agg['ACOS'] = search_agg.apply(
-                                lambda r: (r['spend'] / r['sales'] * 100) if r['sales'] > 0 else 999, axis=1)
-
-                            col1, col2 = st.columns(2)
-                            with col1:
-                                st.markdown("#### ❌ Negative Keywords — Blocheaza!")
-                                negative_kw = search_agg[
-                                    (search_agg['clicks'] >= 3) &
-                                    (search_agg['sales'] == 0) &
-                                    (search_agg['spend'] > 0.5)
-                                ].sort_values('spend', ascending=False).head(15)
-                                for _, kw in negative_kw.iterrows():
-                                    st.error(f"**{kw['Customer Search Term']}** — {kw['clicks']:.0f} clicuri | €{kw['spend']:.2f} cheltuit | 0 vanzari")
-
-                            with col2:
-                                st.markdown("#### ✅ Keywords Profitabile — Creste Bugetul!")
-                                profit_kw = search_agg[
-                                    (search_agg['sales'] > 0) &
-                                    (search_agg['ACOS'] < 25) &
-                                    (search_agg['ACOS'] > 0)
-                                ].sort_values('sales', ascending=False).head(15)
-                                for _, kw in profit_kw.iterrows():
-                                    st.success(f"**{kw['Customer Search Term']}** — ACOS {kw['ACOS']:.0f}% | Vanzari €{kw['sales']:.0f}")
 
         st.divider()
         st.markdown("### 🔍 Raport Search Term (Optional)")
@@ -719,14 +663,56 @@ else:
                             neprofitabile = df_ppc[(df_ppc['ACOS_camp'] > 40) & (df_ppc['ACOS_camp'] < 999)].sort_values('ACOS_camp', ascending=False)
                             if len(neprofitabile) > 0:
                                 for _, camp in neprofitabile.iterrows():
-                                    st.warning(f"**{camp['Campaign Name']}** — ACOS {camp['ACOS_camp']:.0f}% | Cheltuieli €{curata_valoare(camp['Spend']):.0f}")
+                                    st.warning(f"**{camp['Campaign Name']}** — ACOS {camp['ACOS_camp']:.0f}% | €{curata_valoare(camp['Spend']):.0f}")
                             else:
                                 st.success("Nu ai campanii neprofitabile! 🎉")
                         with col2:
                             st.markdown("#### 🟢 Campanii Profitabile (ACOS < 25%)")
                             profitabile = df_ppc[(df_ppc['ACOS_camp'] < 25) & (df_ppc['ACOS_camp'] > 0)].sort_values('ACOS_camp')
                             for _, camp in profitabile.iterrows():
-                                st.success(f"**{camp['Campaign Name']}** — ACOS {camp['ACOS_camp']:.0f}% | Vanzari €{curata_valoare(camp['7 Day Total Sales']):.0f}")
+                                st.success(f"**{camp['Campaign Name']}** — ACOS {camp['ACOS_camp']:.0f}% | €{curata_valoare(camp['7 Day Total Sales']):.0f}")
+
+                        if csv_search is not None:
+                            st.divider()
+                            st.subheader("🔍 Analiza Search Terms")
+                            if csv_search.name.endswith('.xlsx'):
+                                df_search = pd.read_excel(csv_search, engine='openpyxl')
+                            else:
+                                df_search = pd.read_csv(csv_search, sep='\t')
+
+                            df_search['Spend_s'] = df_search['Spend'].apply(curata_valoare)
+                            df_search['Sales_s'] = df_search['7 Day Total Sales'].apply(curata_valoare)
+                            df_search['Clicks_s'] = pd.to_numeric(df_search['Clicks'], errors='coerce').fillna(0)
+
+                            search_agg = df_search.groupby('Customer Search Term').agg(
+                                clicks=('Clicks_s', 'sum'),
+                                spend=('Spend_s', 'sum'),
+                                sales=('Sales_s', 'sum')
+                            ).reset_index()
+
+                            search_agg['ACOS'] = search_agg.apply(
+                                lambda r: (r['spend'] / r['sales'] * 100) if r['sales'] > 0 else 999, axis=1)
+
+                            col1, col2 = st.columns(2)
+                            with col1:
+                                st.markdown("#### ❌ Negative Keywords — Blocheaza!")
+                                negative_kw = search_agg[
+                                    (search_agg['clicks'] >= 3) &
+                                    (search_agg['sales'] == 0) &
+                                    (search_agg['spend'] > 0.5)
+                                ].sort_values('spend', ascending=False).head(15)
+                                for _, kw in negative_kw.iterrows():
+                                    st.error(f"**{kw['Customer Search Term']}** — {kw['clicks']:.0f} clicuri | €{kw['spend']:.2f} cheltuit | 0 vanzari")
+
+                            with col2:
+                                st.markdown("#### ✅ Keywords Profitabile — Creste Bugetul!")
+                                profit_kw = search_agg[
+                                    (search_agg['sales'] > 0) &
+                                    (search_agg['ACOS'] < 25) &
+                                    (search_agg['ACOS'] > 0)
+                                ].sort_values('sales', ascending=False).head(15)
+                                for _, kw in profit_kw.iterrows():
+                                    st.success(f"**{kw['Customer Search Term']}** — ACOS {kw['ACOS']:.0f}% | Vanzari €{kw['sales']:.0f}")
 
                         raport_json = df_merge[['ASIN', 'Title', 'vanzari_totale', 'cheltuieli_ppc', 'ACOS %', 'TACOS %']].to_dict('records')
                         supabase.table("rapoarte_lunare").insert({
@@ -741,7 +727,7 @@ else:
                         st.error(f"❌ Eroare: {str(e)}")
 
         elif csv_vanzari and not csv_ppc:
-            st.info("📢 Incarca si raportul PPC pentru a calcula ACOS si TACOS!")
+            st.info("📢 Incarca si raportul PPC!")
         elif csv_ppc and not csv_vanzari:
             st.info("📦 Incarca si raportul de vanzari!")
 
@@ -755,27 +741,20 @@ else:
                     st.write(f"✅ {r['luna'][:7]} — salvat pe {r['created_at'][:10]}")
                 with col2:
                     if st.button("👁️ Vezi", key=f"vezi_{r['id']}"):
-                        st.session_state[f"show_raport_{r['id']}"] = True
+                        st.session_state[f"show_raport_{r['id']}"] = not st.session_state.get(f"show_raport_{r['id']}", False)
                 with col3:
                     if st.button("🗑️ Sterge", key=f"del_raport_{r['id']}"):
                         supabase.table("rapoarte_lunare").delete().eq("id", r['id']).execute()
                         st.success("Raport sters!")
                         st.rerun()
-
                 if st.session_state.get(f"show_raport_{r['id']}", False):
                     df_saved = pd.DataFrame(r['date_json'])
                     df_saved = df_saved.rename(columns={
-                        'ASIN': 'ASIN',
-                        'Title': 'Produs',
                         'vanzari_totale': 'Vanzari €',
                         'cheltuieli_ppc': 'Cheltuieli PPC €',
                         'ACOS %': 'ACOS %',
                         'TACOS %': 'TACOS %'
                     })
-                    df_saved['Vanzari €'] = df_saved['Vanzari €'].apply(lambda x: f"€{x:,.0f}")
-                    df_saved['Cheltuieli PPC €'] = df_saved['Cheltuieli PPC €'].apply(lambda x: f"€{x:,.0f}")
-                    df_saved['ACOS %'] = df_saved['ACOS %'].apply(lambda x: f"{x:.1f}%")
-                    df_saved['TACOS %'] = df_saved['TACOS %'].apply(lambda x: f"{x:.1f}%")
                     st.dataframe(df_saved, use_container_width=True)
         else:
             st.info("Nu ai rapoarte salvate inca.")
@@ -789,13 +768,12 @@ else:
             st.dataframe(df_reviews, use_container_width=True)
             if st.button("🤖 Analizeaza reviewurile negative", use_container_width=True):
                 negative = df_reviews[df_reviews['rating'] <= 2]
-                st.write(f"Reviewuri negative gasite: {len(negative)}")
                 for index, row in negative.iterrows():
                     with st.expander(f"⚠️ {row['produs']} — {row['review'][:50]}..."):
                         with st.spinner("Claude analizeaza..."):
                             mesaj = client.messages.create(
                                 model="claude-haiku-4-5-20251001", max_tokens=150,
-                                messages=[{"role": "user", "content": f"Solutie concreta in 2 randuri pentru acest review negativ: '{row['review']}'"}]
+                                messages=[{"role": "user", "content": f"Solutie concreta in 2 randuri: '{row['review']}'"}]
                             )
                             st.write(mesaj.content[0].text)
 
@@ -868,7 +846,6 @@ else:
             st.divider()
             if not is_pro:
                 st.subheader("🚀 Upgrade la Pro")
-                st.write("Deblocheaza toate functiile.")
                 if st.button("⭐ Upgrade la Pro — 29€/lună", use_container_width=True, type="primary"):
                     success, url = create_checkout_session(
                         st.session_state.user.email, st.session_state.user.id,
