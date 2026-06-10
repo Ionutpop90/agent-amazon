@@ -611,22 +611,39 @@ else:
                         st.rerun()
 
                 if st.session_state.get(f"editing_{produs['id']}", False):
+                    st.session_state.setdefault(f"edit_nume_{produs['id']}", produs['nume'])
+                    st.session_state.setdefault(f"edit_vanzari_{produs['id']}", int(produs['vanzari']))
+                    st.session_state.setdefault(f"edit_cheltuieli_{produs['id']}", int(produs['cheltuieli']))
+                    st.session_state.setdefault(f"edit_rating_{produs['id']}", float(produs['rating']))
+
                     col1, col2 = st.columns(2)
                     with col1:
-                        new_nume = st.text_input("Nume produs", value=produs['nume'], key=f"nume_{produs['id']}")
-                        new_vanzari = st.number_input("Vanzari lunare (€)", min_value=0, value=int(produs['vanzari']), key=f"vanzari_{produs['id']}")
+                        st.session_state[f"edit_nume_{produs['id']}"] = st.text_input(
+                            "Nume", value=st.session_state[f"edit_nume_{produs['id']}"],
+                            key=f"inp_nume_{produs['id']}")
+                        st.session_state[f"edit_vanzari_{produs['id']}"] = st.number_input(
+                            "Vanzari (€)", min_value=0,
+                            value=st.session_state[f"edit_vanzari_{produs['id']}"],
+                            key=f"inp_vanzari_{produs['id']}")
                     with col2:
-                        new_cheltuieli = st.number_input("Cheltuieli publicitate (€)", min_value=0, value=int(produs['cheltuieli']), key=f"cheltuieli_{produs['id']}")
-                        new_rating = st.number_input("Rating", min_value=0.0, max_value=5.0, step=0.1, value=float(produs['rating']), key=f"rating_{produs['id']}")
-                    if st.button("💾 Salveaza modificarile", key=f"save_{produs['id']}", type="primary", use_container_width=True):
+                        st.session_state[f"edit_cheltuieli_{produs['id']}"] = st.number_input(
+                            "Cheltuieli (€)", min_value=0,
+                            value=st.session_state[f"edit_cheltuieli_{produs['id']}"],
+                            key=f"inp_cheltuieli_{produs['id']}")
+                        st.session_state[f"edit_rating_{produs['id']}"] = st.number_input(
+                            "Rating", min_value=0.0, max_value=5.0, step=0.1,
+                            value=st.session_state[f"edit_rating_{produs['id']}"],
+                            key=f"inp_rating_{produs['id']}")
+
+                    if st.button("💾 Salveaza", key=f"save_{produs['id']}", type="primary"):
                         supabase.table("produse").update({
-                            "nume": new_nume,
-                            "vanzari": new_vanzari,
-                            "cheltuieli": new_cheltuieli,
-                            "rating": new_rating
+                            "nume": st.session_state[f"edit_nume_{produs['id']}"],
+                            "vanzari": st.session_state[f"edit_vanzari_{produs['id']}"],
+                            "cheltuieli": st.session_state[f"edit_cheltuieli_{produs['id']}"],
+                            "rating": st.session_state[f"edit_rating_{produs['id']}"]
                         }).eq("id", produs['id']).execute()
                         st.session_state[f"editing_{produs['id']}"] = False
-                        st.success("✅ Produs actualizat!")
+                        st.success("✅ Salvat!")
                         st.rerun()
             st.divider()
             if st.button("🔍 Analizeaza toate produsele", use_container_width=True):
