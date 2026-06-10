@@ -718,6 +718,18 @@ else:
 
                 if st.session_state.get(f"show_raport_{r['id']}", False):
                     df_saved = pd.DataFrame(r['date_json'])
+                    df_saved = df_saved.rename(columns={
+                        'ASIN': 'ASIN',
+                        'Title': 'Produs',
+                        'vanzari_totale': 'Vanzari €',
+                        'cheltuieli_ppc': 'Cheltuieli PPC €',
+                        'ACOS %': 'ACOS %',
+                        'TACOS %': 'TACOS %'
+                    })
+                    df_saved['Vanzari €'] = df_saved['Vanzari €'].apply(lambda x: f"€{x:,.0f}")
+                    df_saved['Cheltuieli PPC €'] = df_saved['Cheltuieli PPC €'].apply(lambda x: f"€{x:,.0f}")
+                    df_saved['ACOS %'] = df_saved['ACOS %'].apply(lambda x: f"{x:.1f}%")
+                    df_saved['TACOS %'] = df_saved['TACOS %'].apply(lambda x: f"{x:.1f}%")
                     st.dataframe(df_saved, use_container_width=True)
         else:
             st.info("Nu ai rapoarte salvate inca.")
