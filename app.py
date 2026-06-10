@@ -237,6 +237,69 @@ def show_onboarding():
     with col2: st.info("🤖 **Agent AI personal**\nConversatie directa cu Claude")
     with col3: st.info("💬 **Analiza reviewuri**\nIdentifica problemele rapid")
 
+def afiseaza_raport_salvat(r):
+    """Afiseaza un raport salvat complet"""
+    date_json = r['date_json']
+
+    # Sumar
+    produse_r = date_json.get('produse', [])
+    campanii_nep = date_json.get('campanii_neprofitabile', [])
+    campanii_prof = date_json.get('campanii_profitabile', [])
+    neg_kw = date_json.get('negative_keywords', [])
+    prof_kw = date_json.get('profit_keywords', [])
+    sumar = date_json.get('sumar', {})
+
+    col1, col2, col3, col4 = st.columns(4)
+    with col1: st.metric("Total Vanzari", f"€{sumar.get('total_vanzari', 0):,.0f}")
+    with col2: st.metric("Total Cheltuieli PPC", f"€{sumar.get('total_cheltuieli', 0):,.0f}")
+    with col3: st.metric("TACOS Total", f"{sumar.get('tacos_total', 0):.1f}%")
+    with col4: st.metric("Vanzari - PPC", f"€{sumar.get('total_vanzari', 0) - sumar.get('total_cheltuieli', 0):,.0f}")
+
+    if produse_r:
+        st.divider()
+        st.subheader("📦 ACOS si TACOS per Produs")
+        for row in produse_r:
+            acos = float(row.get('ACOS %', 0))
+            tacos = float(row.get('TACOS %', 0))
+            if acos > 40: emoji, status = "🔴", "NEPROFITABIL"
+            elif acos > 25: emoji, status = "🟡", "ATENTIE"
+            else: emoji, status = "🟢", "PROFITABIL"
+            with st.expander(f"{emoji} {str(row.get('Title',''))[:50]} ({row.get('ASIN','')}) — {status}"):
+                c1, c2, c3, c4 = st.columns(4)
+                with c1: st.metric("Vanzari Totale", f"€{float(row.get('vanzari_totale', 0)):,.0f}")
+                with c2: st.metric("Cheltuieli PPC", f"€{float(row.get('cheltuieli_ppc', 0)):,.0f}")
+                with c3: st.metric("ACOS", f"{acos:.1f}%")
+                with c4: st.metric("TACOS", f"{tacos:.2f}%")
+
+    if campanii_nep or campanii_prof:
+        st.divider()
+        st.subheader("📢 Analiza Campanii")
+        col1, col2 = st.columns(2)
+        with col1:
+            st.markdown("#### 🔴 Campanii Neprofitabile")
+            if campanii_nep:
+                for c in campanii_nep:
+                    st.warning(f"**{c['nume']}** — ACOS {c['acos']:.0f}% | €{c['cheltuieli']:.0f}")
+            else:
+                st.success("Nu ai campanii neprofitabile!")
+        with col2:
+            st.markdown("#### 🟢 Campanii Profitabile")
+            for c in campanii_prof:
+                st.success(f"**{c['nume']}** — ACOS {c['acos']:.0f}% | €{c['vanzari']:.0f}")
+
+    if neg_kw or prof_kw:
+        st.divider()
+        st.subheader("🔍 Analiza Search Terms")
+        col1, col2 = st.columns(2)
+        with col1:
+            st.markdown("#### ❌ Negative Keywords")
+            for kw in neg_kw:
+                st.error(f"**{kw['keyword']}** — {kw['clicks']:.0f} clicuri | €{kw['spend']:.2f} | 0 vanzari")
+        with col2:
+            st.markdown("#### ✅ Keywords Profitabile")
+            for kw in prof_kw:
+                st.success(f"**{kw['keyword']}** — ACOS {kw['acos']:.0f}% | €{kw['sales']:.0f}")
+
 @tool
 def calculeaza_profit(vanzari: int, acos: float, pret_produs: float, cost_produs: float) -> str:
     """Calculeaza profitul lunar al unui produs Amazon"""
@@ -623,13 +686,12 @@ else:
                         df_merge['TACOS %'] = df_merge.apply(
                             lambda r: (r['cheltuieli_ppc'] / r['vanzari_totale'] * 100) if r['vanzari_totale'] > 0 else 0, axis=1)
 
-                        st.divider()
-                        st.subheader(f"📊 Rezultate — {luni_display[luna_selectata]}")
-
                         total_vanzari = df_merge['vanzari_totale'].sum()
                         total_cheltuieli = df_merge['cheltuieli_ppc'].sum()
                         tacos_total = (total_cheltuieli / total_vanzari * 100) if total_vanzari > 0 else 0
 
+                        st.divider()
+                        st.subheader(f"📊 Rezultate — {luni_display[luna_selectata]}")
                         col1, col2, col3, col4 = st.columns(4)
                         with col1: st.metric("Total Vanzari", f"€{total_vanzari:,.0f}")
                         with col2: st.metric("Total Cheltuieli PPC", f"€{total_cheltuieli:,.0f}")
@@ -649,13 +711,16 @@ else:
                                 with c1: st.metric("Vanzari Totale", f"€{row['vanzari_totale']:,.0f}")
                                 with c2: st.metric("Cheltuieli PPC", f"€{row['cheltuieli_ppc']:,.0f}")
                                 with c3: st.metric("ACOS", f"{acos:.1f}%")
-                                with c4: st.metric("TACOS", f"{tacos:.1f}%")
+                                with c4: st.metric("TACOS", f"{tacos:.2f}%")
 
                         st.divider()
                         st.subheader("📢 Analiza Campanii")
                         df_ppc['ACOS_camp'] = df_ppc.apply(
                             lambda r: (curata_valoare(r['Spend']) / curata_valoare(r['7 Day Total Sales']) * 100)
                             if curata_valoare(r['7 Day Total Sales']) > 0 else 999, axis=1)
+
+                        campanii_nep_list = []
+                        campanii_prof_list = []
 
                         col1, col2 = st.columns(2)
                         with col1:
@@ -664,6 +729,7 @@ else:
                             if len(neprofitabile) > 0:
                                 for _, camp in neprofitabile.iterrows():
                                     st.warning(f"**{camp['Campaign Name']}** — ACOS {camp['ACOS_camp']:.0f}% | €{curata_valoare(camp['Spend']):.0f}")
+                                    campanii_nep_list.append({'nume': camp['Campaign Name'], 'acos': camp['ACOS_camp'], 'cheltuieli': curata_valoare(camp['Spend'])})
                             else:
                                 st.success("Nu ai campanii neprofitabile! 🎉")
                         with col2:
@@ -671,6 +737,10 @@ else:
                             profitabile = df_ppc[(df_ppc['ACOS_camp'] < 25) & (df_ppc['ACOS_camp'] > 0)].sort_values('ACOS_camp')
                             for _, camp in profitabile.iterrows():
                                 st.success(f"**{camp['Campaign Name']}** — ACOS {camp['ACOS_camp']:.0f}% | €{curata_valoare(camp['7 Day Total Sales']):.0f}")
+                                campanii_prof_list.append({'nume': camp['Campaign Name'], 'acos': camp['ACOS_camp'], 'vanzari': curata_valoare(camp['7 Day Total Sales'])})
+
+                        neg_kw_list = []
+                        prof_kw_list = []
 
                         if csv_search is not None:
                             st.divider()
@@ -702,7 +772,8 @@ else:
                                     (search_agg['spend'] > 0.5)
                                 ].sort_values('spend', ascending=False).head(15)
                                 for _, kw in negative_kw.iterrows():
-                                    st.error(f"**{kw['Customer Search Term']}** — {kw['clicks']:.0f} clicuri | €{kw['spend']:.2f} cheltuit | 0 vanzari")
+                                    st.error(f"**{kw['Customer Search Term']}** — {kw['clicks']:.0f} clicuri | €{kw['spend']:.2f} | 0 vanzari")
+                                    neg_kw_list.append({'keyword': kw['Customer Search Term'], 'clicks': kw['clicks'], 'spend': kw['spend']})
 
                             with col2:
                                 st.markdown("#### ✅ Keywords Profitabile — Creste Bugetul!")
@@ -712,16 +783,30 @@ else:
                                     (search_agg['ACOS'] > 0)
                                 ].sort_values('sales', ascending=False).head(15)
                                 for _, kw in profit_kw.iterrows():
-                                    st.success(f"**{kw['Customer Search Term']}** — ACOS {kw['ACOS']:.0f}% | Vanzari €{kw['sales']:.0f}")
+                                    st.success(f"**{kw['Customer Search Term']}** — ACOS {kw['ACOS']:.0f}% | €{kw['sales']:.0f}")
+                                    prof_kw_list.append({'keyword': kw['Customer Search Term'], 'acos': kw['ACOS'], 'sales': kw['sales']})
 
-                        raport_json = df_merge[['ASIN', 'Title', 'vanzari_totale', 'cheltuieli_ppc', 'ACOS %', 'TACOS %']].to_dict('records')
+                        # Salvare completa
+                        raport_complet = {
+                            'sumar': {
+                                'total_vanzari': total_vanzari,
+                                'total_cheltuieli': total_cheltuieli,
+                                'tacos_total': tacos_total
+                            },
+                            'produse': df_merge[['ASIN', 'Title', 'vanzari_totale', 'cheltuieli_ppc', 'ACOS %', 'TACOS %']].to_dict('records'),
+                            'campanii_neprofitabile': campanii_nep_list,
+                            'campanii_profitabile': campanii_prof_list,
+                            'negative_keywords': neg_kw_list,
+                            'profit_keywords': prof_kw_list
+                        }
+
                         supabase.table("rapoarte_lunare").insert({
                             "user_id": st.session_state.user.id,
                             "luna": f"{luna_selectata}-01",
                             "tip": "complet",
-                            "date_json": raport_json
+                            "date_json": raport_complet
                         }).execute()
-                        st.success(f"✅ Raport {luni_display[luna_selectata]} salvat!")
+                        st.success(f"✅ Raport {luni_display[luna_selectata]} salvat complet!")
 
                     except Exception as e:
                         st.error(f"❌ Eroare: {str(e)}")
@@ -748,19 +833,7 @@ else:
                         st.success("Raport sters!")
                         st.rerun()
                 if st.session_state.get(f"show_raport_{r['id']}", False):
-                    df_saved = pd.DataFrame(r['date_json'])
-                    df_saved = df_saved.rename(columns={
-                        'vanzari_totale': 'Vanzari €',
-                        'cheltuieli_ppc': 'Cheltuieli PPC €',
-                        'ACOS %': 'ACOS %',
-                        'TACOS %': 'TACOS %'
-                    })
-                    df_saved['Vanzari €'] = df_saved['Vanzari €'].apply(lambda x: f"€{float(x):,.0f}")
-                    df_saved['Cheltuieli PPC €'] = df_saved['Cheltuieli PPC €'].apply(lambda x: f"€{float(x):,.0f}")
-                    df_saved['ACOS %'] = df_saved['ACOS %'].apply(lambda x: f"{float(x):.1f}%")
-                    df_saved['TACOS %'] = df_saved['TACOS %'].apply(lambda x: f"{float(x):.2f}%")
-                    df_saved['Title'] = df_saved['Title'].apply(lambda x: str(x)[:40])
-                    st.dataframe(df_saved[['ASIN', 'Title', 'Vanzari €', 'Cheltuieli PPC €', 'ACOS %', 'TACOS %']], use_container_width=True)
+                    afiseaza_raport_salvat(r)
         else:
             st.info("Nu ai rapoarte salvate inca.")
 
