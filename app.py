@@ -334,6 +334,18 @@ if not st.session_state.logged_in:
                     st.rerun()
                 else:
                     st.error("Email sau parola gresite!")
+            st.divider()
+            st.markdown("**sau**")
+            if st.button("🔴 Continua cu Google", use_container_width=True):
+                try:
+                    data = supabase.auth.sign_in_with_oauth({
+                        "provider": "google",
+                        "options": {"redirect_to": "https://amazonanalyzer.org"}
+                    })
+                    st.markdown(f'<meta http-equiv="refresh" content="0;url={data.url}">', unsafe_allow_html=True)
+                    st.markdown(f"[👉 Click aici]({data.url})")
+                except Exception as e:
+                    st.error(f"Eroare Google: {str(e)}")
         with tab2:
             email_reg = st.text_input("Email", key="reg_email")
             password_reg = st.text_input("Parola", type="password", key="reg_pass")
@@ -343,6 +355,7 @@ if not st.session_state.logged_in:
                     st.success(message)
                 else:
                     st.error(message)
+       
 else:
     result = supabase.table("produse").select("*").eq("user_id", st.session_state.user.id).execute()
     produse = result.data
