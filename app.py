@@ -601,6 +601,52 @@ else:
             st.markdown("### 📢 Raport PPC")
             st.caption("Amazon Advertising → Sponsored ads reports → Advertised product report")
             csv_ppc = st.file_uploader("Incarca Raport PPC", type=["csv", "xlsx"], key="csv_ppc")
+            if csv_search is not None:
+                            st.divider()
+                            st.subheader("🔍 Analiza Search Terms")
+                            if csv_search.name.endswith('.xlsx'):
+                                df_search = pd.read_excel(csv_search, engine='openpyxl')
+                            else:
+                                df_search = pd.read_csv(csv_search, sep='\t')
+
+                            df_search['Spend_s'] = df_search['Spend'].apply(curata_valoare)
+                            df_search['Sales_s'] = df_search['7 Day Total Sales'].apply(curata_valoare)
+                            df_search['Clicks_s'] = pd.to_numeric(df_search['Clicks'], errors='coerce').fillna(0)
+
+                            search_agg = df_search.groupby('Customer Search Term').agg(
+                                clicks=('Clicks_s', 'sum'),
+                                spend=('Spend_s', 'sum'),
+                                sales=('Sales_s', 'sum')
+                            ).reset_index()
+
+                            search_agg['ACOS'] = search_agg.apply(
+                                lambda r: (r['spend'] / r['sales'] * 100) if r['sales'] > 0 else 999, axis=1)
+
+                            col1, col2 = st.columns(2)
+                            with col1:
+                                st.markdown("#### ❌ Negative Keywords — Blocheaza!")
+                                negative_kw = search_agg[
+                                    (search_agg['clicks'] >= 3) &
+                                    (search_agg['sales'] == 0) &
+                                    (search_agg['spend'] > 0.5)
+                                ].sort_values('spend', ascending=False).head(15)
+                                for _, kw in negative_kw.iterrows():
+                                    st.error(f"**{kw['Customer Search Term']}** — {kw['clicks']:.0f} clicuri | €{kw['spend']:.2f} cheltuit | 0 vanzari")
+
+                            with col2:
+                                st.markdown("#### ✅ Keywords Profitabile — Creste Bugetul!")
+                                profit_kw = search_agg[
+                                    (search_agg['sales'] > 0) &
+                                    (search_agg['ACOS'] < 25) &
+                                    (search_agg['ACOS'] > 0)
+                                ].sort_values('sales', ascending=False).head(15)
+                                for _, kw in profit_kw.iterrows():
+                                    st.success(f"**{kw['Customer Search Term']}** — ACOS {kw['ACOS']:.0f}% | Vanzari €{kw['sales']:.0f}")
+
+        st.divider()
+        st.markdown("### 🔍 Raport Search Term (Optional)")
+        st.caption("Amazon Advertising → Sponsored ads reports → Search term report")
+        csv_search = st.file_uploader("Incarca Raport Search Term", type=["csv", "xlsx"], key="csv_search")
 
         if csv_vanzari and csv_ppc:
             if st.button("🔍 Analizeaza", use_container_width=True, type="primary"):
