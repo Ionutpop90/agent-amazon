@@ -38,6 +38,18 @@ if not st.session_state.logged_in:
             st.session_state.user = session.user
     except:
         pass
+    
+    # Verifica token din URL dupa Google OAuth
+    try:
+        params = st.query_params
+        if 'access_token' in params:
+            user = supabase.auth.get_user(params['access_token'])
+            if user and user.user:
+                st.session_state.logged_in = True
+                st.session_state.user = user.user
+                st.rerun()
+    except:
+        pass
 
 def calculeaza_scor(produs):
     if produs['vanzari'] == 0:
