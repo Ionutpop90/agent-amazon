@@ -42,11 +42,11 @@ if not st.session_state.logged_in:
     # Verifica token din URL dupa Google OAuth
     try:
         params = st.query_params
-        if 'access_token' in params:
-            user = supabase.auth.get_user(params['access_token'])
-            if user and user.user:
+        if 'login' in params and params['login'] == 'google':
+            session = supabase.auth.get_session()
+            if session and session.user:
                 st.session_state.logged_in = True
-                st.session_state.user = user.user
+                st.session_state.user = session.user
                 st.rerun()
     except:
         pass
@@ -352,7 +352,7 @@ if not st.session_state.logged_in:
                 try:
                     data = supabase.auth.sign_in_with_oauth({
                         "provider": "google",
-                        "options": {"redirect_to": "https://amazonanalyzer.org"}
+                        "options": {"redirect_to": "https://amazonanalyzer.org/?login=google"}
                     })
                     st.markdown(f'<meta http-equiv="refresh" content="0;url={data.url}">', unsafe_allow_html=True)
                     st.markdown(f"[👉 Click aici]({data.url})")
