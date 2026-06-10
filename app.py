@@ -755,7 +755,12 @@ else:
                         'ACOS %': 'ACOS %',
                         'TACOS %': 'TACOS %'
                     })
-                    st.dataframe(df_saved, use_container_width=True)
+                    df_saved['Vanzari €'] = df_saved['Vanzari €'].apply(lambda x: f"€{float(x):,.0f}")
+                    df_saved['Cheltuieli PPC €'] = df_saved['Cheltuieli PPC €'].apply(lambda x: f"€{float(x):,.0f}")
+                    df_saved['ACOS %'] = df_saved['ACOS %'].apply(lambda x: f"{float(x):.1f}%")
+                    df_saved['TACOS %'] = df_saved['TACOS %'].apply(lambda x: f"{float(x):.2f}%")
+                    df_saved['Title'] = df_saved['Title'].apply(lambda x: str(x)[:40])
+                    st.dataframe(df_saved[['ASIN', 'Title', 'Vanzari €', 'Cheltuieli PPC €', 'ACOS %', 'TACOS %']], use_container_width=True)
         else:
             st.info("Nu ai rapoarte salvate inca.")
 
