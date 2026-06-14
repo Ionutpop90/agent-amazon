@@ -774,12 +774,13 @@ else:
                         with col1: st.metric("Total Sales", f"€{total_sales:,.0f}")
                         with col2: st.metric("Total PPC Spend", f"€{total_spend:,.0f}")
                         with col3: st.metric("Total TACOS", f"{tacos_total:.1f}%", help="PPC Spend / Total monthly sales")
-                        with col4: st.metric("Ad Sales", f"€{total_ad_sales:,.0f}", help="Same as Amazon Campaign Manager")
+                        with col4: st.metric("ACOS (like Amazon)", f"{acos_amazon:.1f}%", help="PPC Spend / Ad sales — identical to Amazon")
 
-                        col1, col2, col3 = st.columns(3)
-                        with col1: st.metric("ACOS (like Amazon)", f"{acos_amazon:.1f}%", help="PPC Spend / Ad sales — identical to Amazon")
+                        col1, col2, col3, col4 = st.columns(4)
+                        with col1: st.metric("Ad Sales", f"€{total_ad_sales:,.0f}", help="Same as Amazon Campaign Manager")
                         with col2: st.metric("Organic Sales", f"€{organic_sales:,.0f}", help="Sales without ads")
                         with col3: st.metric("% Organic Sales", f"{pct_organic:.1f}%")
+                        with col4: st.metric("Organic vs Ads", f"{pct_organic:.0f}% / {100-pct_organic:.0f}%")
 
                         st.info("ℹ️ **ACOS** = PPC Spend / Ad sales (7 days). **TACOS** = PPC Spend / TOTAL monthly sales — more accurate for real business analysis.")
 
