@@ -499,8 +499,9 @@ else:
                     st.markdown(f"[👉 Plateste aici]({url})")
         st.divider()
         if st.button("🚪 Logout", use_container_width=True):
-            st.session_state.logged_in = False
-            st.session_state.user = None
+            supabase.auth.sign_out()
+            for key in list(st.session_state.keys()):
+                del st.session_state[key]
             st.rerun()
 
     if "success" in st.query_params:
