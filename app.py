@@ -275,10 +275,11 @@ def display_saved_report(r):
     with col3: st.metric("Total TACOS", f"{summary.get('tacos_total', 0):.1f}%")
     with col4: st.metric("Ad Sales", f"€{summary.get('vanzari_ppc', 0):,.0f}")
 
-    col1, col2, col3 = st.columns(3)
+    col1, col2, col3, col4 = st.columns(4)
     with col1: st.metric("ACOS (like Amazon)", f"{summary.get('acos_amazon', 0):.1f}%")
     with col2: st.metric("Organic Sales", f"€{summary.get('vanzari_organice', 0):,.0f}")
     with col3: st.metric("% Organic Sales", f"{summary.get('pct_organice', 0):.1f}%")
+    with col4: st.metric("Organic vs Ads", f"{summary.get('pct_organice', 0):.0f}% / {100-summary.get('pct_organice', 0):.0f}%")
 
     if products_r:
         st.divider()
