@@ -769,7 +769,11 @@ else:
                         with col1: st.metric("Total Vanzari", f"€{total_vanzari:,.0f}")
                         with col2: st.metric("Total Cheltuieli PPC", f"€{total_cheltuieli:,.0f}")
                         with col3: st.metric("TACOS Total", f"{tacos_total:.1f}%", help="Total Advertising Cost of Sale = Cheltuieli PPC / Vanzari Totale. Mai precis decat ACOS Amazon care foloseste doar 7 zile.")
-                        with col4: st.metric("Vanzari - PPC", f"€{total_vanzari - total_cheltuieli:,.0f}")
+                        with col4: st.metric("Vanzari din Reclame", f"€{df_merge['vanzari_ppc'].sum():,.0f}", help="Vanzari atribuite reclamelor in 7 zile - acelasi ca Amazon Campaign Manager")
+                        col1, col2, col3 = st.columns(3)
+                        with col1: st.metric("ACOS (ca Amazon)", f"{(total_cheltuieli / df_merge['vanzari_ppc'].sum() * 100) if df_merge['vanzari_ppc'].sum() > 0 else 0:.1f}%", help="Cheltuieli PPC / Vanzari din reclame - identic cu Amazon")
+                        with col2: st.metric("Vanzari Organice", f"€{total_vanzari - df_merge['vanzari_ppc'].sum():,.0f}", help="Vanzari fara reclame")
+                        with col3: st.metric("% Vanzari Organice", f"{((total_vanzari - df_merge['vanzari_ppc'].sum()) / total_vanzari * 100) if total_vanzari > 0 else 0:.1f}%")
                         
                         st.info("ℹ️ **ACOS** = Cheltuieli PPC / Vanzari din reclame (7 zile). **TACOS** = Cheltuieli PPC / Vanzari TOTALE lunare — mai precis pentru analiza reala a business-ului.")
 
