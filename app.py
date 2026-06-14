@@ -10,6 +10,7 @@ from langchain_core.messages import HumanMessage, SystemMessage
 from langchain_core.tools import tool
 from langgraph.prebuilt import create_react_agent
 from auth import register_user, login_user, supabase
+from translations import t
 from payments import create_checkout_session, activate_pro, check_pro
 from reportlab.lib.pagesizes import A4
 from reportlab.lib import colors
@@ -395,6 +396,9 @@ else:
 
     with st.sidebar:
         st.title("🛒 Agent Amazon")
+        lang = st.selectbox("🌍", ["ro", "en", "es"], 
+                           format_func=lambda x: {"ro": "🇷🇴 Română", "en": "🇬🇧 English", "es": "🇪🇸 Español"}[x],
+                           key="language")
         st.write(f"👤 {st.session_state.user.email}")
         if alerte > 0:
             st.error(f"⚠️ {alerte} alerte active!")
