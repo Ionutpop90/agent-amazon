@@ -792,18 +792,12 @@ else:
 
         col1, col2 = st.columns(2)
         with col1:
-            st.markdown("### 📦 Raport Vanzari")
-            st.caption("Seller Central → Business Reports → Detail page sales and traffic by child item")
-            csv_vanzari = st.file_uploader("", type="csv", key="csv_vanzari")
+            csv_vanzari = st.file_uploader("📦 Raport Vanzari (CSV)", type="csv", key="csv_vanzari", help="Seller Central → Business Reports → Detail page sales and traffic by child item")
         with col2:
-            st.markdown("### 📢 Raport PPC")
-            st.caption("Amazon Advertising → Sponsored ads reports → Advertised product report")
-            csv_ppc = st.file_uploader("", type=["csv", "xlsx"], key="csv_ppc")
+            csv_ppc = st.file_uploader("📢 Raport PPC (CSV/XLSX)", type=["csv", "xlsx"], key="csv_ppc", help="Amazon Advertising → Sponsored ads reports → Advertised product report")
 
         st.divider()
-        st.markdown("### 🔍 Raport Search Term (Optional)")
-        st.caption("Amazon Advertising → Sponsored ads reports → Search term report")
-        csv_search = st.file_uploader("", type=["csv", "xlsx"], key="csv_search")
+        csv_search = st.file_uploader("🔍 Raport Search Term - Optional (CSV/XLSX)", type=["csv", "xlsx"], key="csv_search", help="Amazon Advertising → Sponsored ads reports → Search term report")
 
         if csv_vanzari and csv_ppc:
             if st.button("🔍 Analizeaza", use_container_width=True, type="primary"):
