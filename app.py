@@ -803,7 +803,7 @@ else:
         st.divider()
         st.markdown("### 🔍 Raport Search Term (Optional)")
         st.caption("Amazon Advertising → Sponsored ads reports → Search term report")
-        csv_search = st.file_uploader("Incarca Raport Search Term", type=["csv", "xlsx"], key="csv_search")
+        csv_search = st.file_uploader("", type=["csv", "xlsx"], key="csv_search")
 
         if csv_vanzari and csv_ppc:
             if st.button("🔍 Analizeaza", use_container_width=True, type="primary"):
