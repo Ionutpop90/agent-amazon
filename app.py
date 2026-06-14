@@ -768,8 +768,10 @@ else:
                         col1, col2, col3, col4 = st.columns(4)
                         with col1: st.metric("Total Vanzari", f"€{total_vanzari:,.0f}")
                         with col2: st.metric("Total Cheltuieli PPC", f"€{total_cheltuieli:,.0f}")
-                        with col3: st.metric("TACOS Total", f"{tacos_total:.1f}%")
+                        with col3: st.metric("TACOS Total", f"{tacos_total:.1f}%", help="Total Advertising Cost of Sale = Cheltuieli PPC / Vanzari Totale. Mai precis decat ACOS Amazon care foloseste doar 7 zile.")
                         with col4: st.metric("Vanzari - PPC", f"€{total_vanzari - total_cheltuieli:,.0f}")
+                        
+                        st.info("ℹ️ **ACOS** = Cheltuieli PPC / Vanzari din reclame (7 zile). **TACOS** = Cheltuieli PPC / Vanzari TOTALE lunare — mai precis pentru analiza reala a business-ului.")
 
                         st.divider()
                         st.subheader("📦 ACOS si TACOS per Produs")
@@ -845,8 +847,9 @@ else:
                                     (search_agg['spend'] > 0.5)
                                 ].sort_values('spend', ascending=False).head(15)
                                 for _, kw in negative_kw.iterrows():
-                                    st.error(f"**{kw['Customer Search Term']}** — {kw['clicks']:.0f} clicuri | €{kw['spend']:.2f} | 0 vanzari")
-                                    neg_kw_list.append({'keyword': kw['Customer Search Term'], 'clicks': kw['clicks'], 'spend': kw['spend']})
+                                    camp_name = df_search[df_search['Customer Search Term'] == kw['Customer Search Term']]['Campaign Name'].iloc[0] if len(df_search[df_search['Customer Search Term'] == kw['Customer Search Term']]) > 0 else "N/A"
+                                    st.error(f"**{kw['Customer Search Term']}** — {kw['clicks']:.0f} clicuri | €{kw['spend']:.2f} | 0 vanzari | 📢 Campanie: {camp_name}")
+                                    neg_kw_list.append({'keyword': kw['Customer Search Term'], 'clicks': kw['clicks'], 'spend': kw['spend'], 'campanie': camp_name})
 
                             with col2:
                                 st.markdown("#### ✅ Keywords Profitabile — Creste Bugetul!")
@@ -856,8 +859,9 @@ else:
                                     (search_agg['ACOS'] > 0)
                                 ].sort_values('sales', ascending=False).head(15)
                                 for _, kw in profit_kw.iterrows():
-                                    st.success(f"**{kw['Customer Search Term']}** — ACOS {kw['ACOS']:.0f}% | €{kw['sales']:.0f}")
-                                    prof_kw_list.append({'keyword': kw['Customer Search Term'], 'acos': kw['ACOS'], 'sales': kw['sales']})
+                                    camp_name = df_search[df_search['Customer Search Term'] == kw['Customer Search Term']]['Campaign Name'].iloc[0] if len(df_search[df_search['Customer Search Term'] == kw['Customer Search Term']]) > 0 else "N/A"
+                                    st.success(f"**{kw['Customer Search Term']}** — ACOS {kw['ACOS']:.0f}% | €{kw['sales']:.0f} | 📢 Campanie: {camp_name}")
+                                    prof_kw_list.append({'keyword': kw['Customer Search Term'], 'acos': kw['ACOS'], 'sales': kw['sales'], 'campanie': camp_name})
 
                         # Salvare completa
                         raport_complet = {
