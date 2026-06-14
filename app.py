@@ -19,6 +19,92 @@ from reportlab.lib.units import cm
 from datetime import datetime, date
 
 st.set_page_config(page_title="Agent Amazon", page_icon="🛒", layout="wide")
+st.markdown("""
+<style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+    * { font-family: 'Inter', sans-serif !important; }
+    .stApp { background-color: #F0F2F6; }
+    [data-testid="stSidebar"] {
+        background: #1E1E2E !important;
+        border-right: 1px solid #2D2D3F;
+    }
+    [data-testid="stSidebar"] * { color: #E0E0E0 !important; }
+    [data-testid="stSidebar"] .stButton > button {
+        background: transparent !important;
+        border: 1px solid #3D3D5C !important;
+        color: #E0E0E0 !important;
+        text-align: left !important;
+        border-radius: 6px !important;
+        margin-bottom: 4px !important;
+    }
+    [data-testid="stSidebar"] .stButton > button:hover {
+        background: #2D2D4F !important;
+        border-color: #FF9900 !important;
+        color: #FF9900 !important;
+    }
+    div[data-testid="metric-container"] {
+        background: white !important;
+        border: none !important;
+        border-radius: 12px !important;
+        padding: 1.2rem !important;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.08) !important;
+        border-left: 4px solid #FF9900 !important;
+    }
+    div[data-testid="metric-container"] label {
+        color: #6B7280 !important;
+        font-size: 12px !important;
+        font-weight: 500 !important;
+        text-transform: uppercase !important;
+    }
+    div[data-testid="metric-container"] [data-testid="stMetricValue"] {
+        color: #1F2937 !important;
+        font-size: 24px !important;
+        font-weight: 700 !important;
+    }
+    .stButton > button {
+        border-radius: 8px !important;
+        font-weight: 500 !important;
+        transition: all 0.2s !important;
+    }
+    .stButton > button[kind="primary"] {
+        background: #FF9900 !important;
+        color: white !important;
+    }
+    .stButton > button[kind="primary"]:hover {
+        background: #E68900 !important;
+        box-shadow: 0 4px 12px rgba(255,153,0,0.4) !important;
+        transform: translateY(-1px) !important;
+    }
+    .stTabs [data-baseweb="tab-list"] {
+        background: white !important;
+        border-radius: 8px !important;
+        padding: 4px !important;
+    }
+    .stTabs [aria-selected="true"] {
+        background: #FF9900 !important;
+        color: white !important;
+    }
+    h1 { color: #1F2937 !important; font-weight: 700 !important; }
+    h2 { color: #374151 !important; font-weight: 600 !important; }
+    h3 { color: #4B5563 !important; font-weight: 600 !important; }
+    .stTextInput > div > div > input {
+        border-radius: 8px !important;
+        border: 1px solid #E5E7EB !important;
+    }
+    .stTextInput > div > div > input:focus {
+        border-color: #FF9900 !important;
+        box-shadow: 0 0 0 3px rgba(255,153,0,0.1) !important;
+    }
+    .stProgress > div > div {
+        background: #FF9900 !important;
+        border-radius: 4px !important;
+    }
+    .main .block-container {
+        padding: 2rem 3rem !important;
+        max-width: 1400px !important;
+    }
+</style>
+""", unsafe_allow_html=True)
 
 api_key = os.environ.get("ANTHROPIC_API_KEY", "")
 client = anthropic.Anthropic(api_key=api_key)
