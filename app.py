@@ -10,7 +10,6 @@ from langchain_core.messages import HumanMessage, SystemMessage
 from langchain_core.tools import tool
 from langgraph.prebuilt import create_react_agent
 from auth import register_user, login_user, supabase
-from translations import t
 from payments import create_checkout_session, activate_pro, check_pro
 from reportlab.lib.pagesizes import A4
 from reportlab.lib import colors
@@ -53,8 +52,6 @@ if not st.session_state.logged_in:
             st.session_state.user = session.user
     except:
         pass
-    
-    # Verifica token din URL dupa Google OAuth
     try:
         params = st.query_params
         if 'login' in params and params['login'] == 'google':
@@ -265,10 +262,7 @@ def show_onboarding():
     with col3: st.info("💬 **Analiza reviewuri**\nIdentifica problemele rapid")
 
 def afiseaza_raport_salvat(r):
-    """Afiseaza un raport salvat complet"""
     date_json = r['date_json']
-
-    # Sumar
     produse_r = date_json.get('produse', [])
     campanii_nep = date_json.get('campanii_neprofitabile', [])
     campanii_prof = date_json.get('campanii_profitabile', [])
@@ -280,7 +274,12 @@ def afiseaza_raport_salvat(r):
     with col1: st.metric("Total Vanzari", f"€{sumar.get('total_vanzari', 0):,.0f}")
     with col2: st.metric("Total Cheltuieli PPC", f"€{sumar.get('total_cheltuieli', 0):,.0f}")
     with col3: st.metric("TACOS Total", f"{sumar.get('tacos_total', 0):.1f}%")
-    with col4: st.metric("Vanzari - PPC", f"€{sumar.get('total_vanzari', 0) - sumar.get('total_cheltuieli', 0):,.0f}")
+    with col4: st.metric("Vanzari din Reclame", f"€{sumar.get('vanzari_ppc', 0):,.0f}")
+
+    col1, col2, col3 = st.columns(3)
+    with col1: st.metric("ACOS (ca Amazon)", f"{sumar.get('acos_amazon', 0):.1f}%")
+    with col2: st.metric("Vanzari Organice", f"€{sumar.get('vanzari_organice', 0):,.0f}")
+    with col3: st.metric("% Vanzari Organice", f"{sumar.get('pct_organice', 0):.1f}%")
 
     if produse_r:
         st.divider()
@@ -321,11 +320,13 @@ def afiseaza_raport_salvat(r):
         with col1:
             st.markdown("#### ❌ Negative Keywords")
             for kw in neg_kw:
-                st.error(f"**{kw['keyword']}** — {kw['clicks']:.0f} clicuri | €{kw['spend']:.2f} | 0 vanzari")
+                camp = f" | 📢 {kw.get('campanie', '')}" if kw.get('campanie') else ""
+                st.error(f"**{kw['keyword']}** — {kw['clicks']:.0f} clicuri | €{kw['spend']:.2f}{camp}")
         with col2:
             st.markdown("#### ✅ Keywords Profitabile")
             for kw in prof_kw:
-                st.success(f"**{kw['keyword']}** — ACOS {kw['acos']:.0f}% | €{kw['sales']:.0f}")
+                camp = f" | 📢 {kw.get('campanie', '')}" if kw.get('campanie') else ""
+                st.success(f"**{kw['keyword']}** — ACOS {kw['acos']:.0f}% | €{kw['sales']:.0f}{camp}")
 
 @tool
 def calculeaza_profit(vanzari: int, acos: float, pret_produs: float, cost_produs: float) -> str:
@@ -382,7 +383,6 @@ if not st.session_state.logged_in:
                     st.success(message)
                 else:
                     st.error(message)
-       
 else:
     result = supabase.table("produse").select("*").eq("user_id", st.session_state.user.id).execute()
     produse = result.data
@@ -396,9 +396,6 @@ else:
 
     with st.sidebar:
         st.title("🛒 Agent Amazon")
-        lang = st.selectbox("🌍", ["ro", "en", "es"], 
-                           format_func=lambda x: {"ro": "🇷🇴 Română", "en": "🇬🇧 English", "es": "🇪🇸 Español"}[x],
-                           key="language")
         st.write(f"👤 {st.session_state.user.email}")
         if alerte > 0:
             st.error(f"⚠️ {alerte} alerte active!")
@@ -689,6 +686,7 @@ else:
                         st.session_state[f"editing_{produs['id']}"] = False
                         st.success("✅ Salvat!")
                         st.rerun()
+
             st.divider()
             if st.button("🔍 Analizeaza toate produsele", use_container_width=True):
                 for produs in produse:
@@ -765,20 +763,25 @@ else:
 
                         total_vanzari = df_merge['vanzari_totale'].sum()
                         total_cheltuieli = df_merge['cheltuieli_ppc'].sum()
+                        total_vanzari_ppc = df_merge['vanzari_ppc'].sum()
                         tacos_total = (total_cheltuieli / total_vanzari * 100) if total_vanzari > 0 else 0
+                        acos_amazon = (total_cheltuieli / total_vanzari_ppc * 100) if total_vanzari_ppc > 0 else 0
+                        vanzari_organice = total_vanzari - total_vanzari_ppc
+                        pct_organice = (vanzari_organice / total_vanzari * 100) if total_vanzari > 0 else 0
 
                         st.divider()
                         st.subheader(f"📊 Rezultate — {luni_display[luna_selectata]}")
                         col1, col2, col3, col4 = st.columns(4)
                         with col1: st.metric("Total Vanzari", f"€{total_vanzari:,.0f}")
                         with col2: st.metric("Total Cheltuieli PPC", f"€{total_cheltuieli:,.0f}")
-                        with col3: st.metric("TACOS Total", f"{tacos_total:.1f}%", help="Total Advertising Cost of Sale = Cheltuieli PPC / Vanzari Totale. Mai precis decat ACOS Amazon care foloseste doar 7 zile.")
-                        with col4: st.metric("Vanzari din Reclame", f"€{df_merge['vanzari_ppc'].sum():,.0f}", help="Vanzari atribuite reclamelor in 7 zile - acelasi ca Amazon Campaign Manager")
+                        with col3: st.metric("TACOS Total", f"{tacos_total:.1f}%", help="Cheltuieli PPC / Vanzari TOTALE lunare")
+                        with col4: st.metric("Vanzari din Reclame", f"€{total_vanzari_ppc:,.0f}", help="Identic cu Amazon Campaign Manager")
+
                         col1, col2, col3 = st.columns(3)
-                        with col1: st.metric("ACOS (ca Amazon)", f"{(total_cheltuieli / df_merge['vanzari_ppc'].sum() * 100) if df_merge['vanzari_ppc'].sum() > 0 else 0:.1f}%", help="Cheltuieli PPC / Vanzari din reclame - identic cu Amazon")
-                        with col2: st.metric("Vanzari Organice", f"€{total_vanzari - df_merge['vanzari_ppc'].sum():,.0f}", help="Vanzari fara reclame")
-                        with col3: st.metric("% Vanzari Organice", f"{((total_vanzari - df_merge['vanzari_ppc'].sum()) / total_vanzari * 100) if total_vanzari > 0 else 0:.1f}%")
-                        
+                        with col1: st.metric("ACOS (ca Amazon)", f"{acos_amazon:.1f}%", help="Cheltuieli PPC / Vanzari din reclame - identic cu Amazon")
+                        with col2: st.metric("Vanzari Organice", f"€{vanzari_organice:,.0f}", help="Vanzari fara reclame")
+                        with col3: st.metric("% Vanzari Organice", f"{pct_organice:.1f}%")
+
                         st.info("ℹ️ **ACOS** = Cheltuieli PPC / Vanzari din reclame (7 zile). **TACOS** = Cheltuieli PPC / Vanzari TOTALE lunare — mai precis pentru analiza reala a business-ului.")
 
                         st.divider()
@@ -856,7 +859,7 @@ else:
                                 ].sort_values('spend', ascending=False).head(15)
                                 for _, kw in negative_kw.iterrows():
                                     camp_name = df_search[df_search['Customer Search Term'] == kw['Customer Search Term']]['Campaign Name'].iloc[0] if len(df_search[df_search['Customer Search Term'] == kw['Customer Search Term']]) > 0 else "N/A"
-                                    st.error(f"**{kw['Customer Search Term']}** — {kw['clicks']:.0f} clicuri | €{kw['spend']:.2f} | 0 vanzari | 📢 Campanie: {camp_name}")
+                                    st.error(f"**{kw['Customer Search Term']}** — {kw['clicks']:.0f} clicuri | €{kw['spend']:.2f} | 0 vanzari | 📢 {camp_name}")
                                     neg_kw_list.append({'keyword': kw['Customer Search Term'], 'clicks': kw['clicks'], 'spend': kw['spend'], 'campanie': camp_name})
 
                             with col2:
@@ -868,15 +871,18 @@ else:
                                 ].sort_values('sales', ascending=False).head(15)
                                 for _, kw in profit_kw.iterrows():
                                     camp_name = df_search[df_search['Customer Search Term'] == kw['Customer Search Term']]['Campaign Name'].iloc[0] if len(df_search[df_search['Customer Search Term'] == kw['Customer Search Term']]) > 0 else "N/A"
-                                    st.success(f"**{kw['Customer Search Term']}** — ACOS {kw['ACOS']:.0f}% | €{kw['sales']:.0f} | 📢 Campanie: {camp_name}")
+                                    st.success(f"**{kw['Customer Search Term']}** — ACOS {kw['ACOS']:.0f}% | €{kw['sales']:.0f} | 📢 {camp_name}")
                                     prof_kw_list.append({'keyword': kw['Customer Search Term'], 'acos': kw['ACOS'], 'sales': kw['sales'], 'campanie': camp_name})
 
-                        # Salvare completa
                         raport_complet = {
                             'sumar': {
                                 'total_vanzari': total_vanzari,
                                 'total_cheltuieli': total_cheltuieli,
-                                'tacos_total': tacos_total
+                                'tacos_total': tacos_total,
+                                'vanzari_ppc': total_vanzari_ppc,
+                                'acos_amazon': acos_amazon,
+                                'vanzari_organice': vanzari_organice,
+                                'pct_organice': pct_organice
                             },
                             'produse': df_merge[['ASIN', 'Title', 'vanzari_totale', 'cheltuieli_ppc', 'ACOS %', 'TACOS %']].to_dict('records'),
                             'campanii_neprofitabile': campanii_nep_list,
