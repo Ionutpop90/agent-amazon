@@ -794,11 +794,11 @@ else:
         with col1:
             st.markdown("### 📦 Raport Vanzari")
             st.caption("Seller Central → Business Reports → Detail page sales and traffic by child item")
-            csv_vanzari = st.file_uploader("Incarca CSV Vanzari", type="csv", key="csv_vanzari")
+            csv_vanzari = st.file_uploader("", type="csv", key="csv_vanzari")
         with col2:
             st.markdown("### 📢 Raport PPC")
             st.caption("Amazon Advertising → Sponsored ads reports → Advertised product report")
-            csv_ppc = st.file_uploader("Incarca Raport PPC", type=["csv", "xlsx"], key="csv_ppc")
+            csv_ppc = st.file_uploader("", type=["csv", "xlsx"], key="csv_ppc")
 
         st.divider()
         st.markdown("### 🔍 Raport Search Term (Optional)")
