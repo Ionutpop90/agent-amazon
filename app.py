@@ -20,7 +20,6 @@ from datetime import datetime, date
 
 st.set_page_config(page_title="Agent Amazon", page_icon="🛒", layout="wide")
 st.markdown("""
-<st.markdown("""
 <style>
     div[data-testid="metric-container"] {
         background: white;
